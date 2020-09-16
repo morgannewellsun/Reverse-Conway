@@ -9,7 +9,7 @@ from gamelib.logutil import output_root
 
 class ReverseNet:
     
-    def __init__(self, board_size, layer_spec, batches = 64):
+    def __init__(self, board_size, layer_spec, batches = 64, epochs = 200):
         self.density = 0.15
         self._board_size = board_size
         self.model = models.Sequential()
@@ -20,12 +20,13 @@ class ReverseNet:
             ))
         for sz in layer_spec[1:]:
             self.model.add(layers.Dense(sz, activation = 'relu'))
-            # self.model.add(layers.Dropout(0.2))
+            self.model.add(layers.Dropout(0.2))
         self.model.add(layers.Dense(board_size, activation = 'sigmoid'))
         self.model.compile(optimizer = 'rmsprop', 
                       loss = 'binary_crossentropy', 
                       metrics = ['accuracy'])
         self._batches = batches
+        self._epochs = epochs
         self._model_files = output_root + 'nn_model'
         self._predict_dir = output_root + 'nn_predict/'
 
@@ -38,20 +39,26 @@ class ReverseNet:
         """ stop_states is a list with first element being delta.
         """
         # epochs = int(stop_states.shape[0] / self._batches) * 2 + 2
-        epochs = 100
         self._hist = self.model.fit(
             x = stop_states,
             y = start_states,
             batch_size = self._batches,
-            epochs = epochs,
+            epochs = self._epochs,
             verbose = 2,
             validation_split = 0.2)
         os.makedirs(self._model_files)
         self.model.save(self._model_files)
+        self.print_summary(len(start_states))
 
 
     def load(self):
         self.model = models.load_model(self._model_files)
+
+
+    def print_summary(self, data_size):
+        with open(self._predict_dir + 'summary.txt','w+') as fh:
+            self.model.summary(print_fn = lambda x: fh.write(x + '\n'))
+            fh.write('\nUsed data size {}\n'.format(data_size))
 
 
     def display_train(self):
@@ -64,7 +71,8 @@ class ReverseNet:
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
-        plt.show()
+        # plt.show()
+        plt.savefig(self._predict_dir + 'train_perform.pdf')
 
 
     def revert(self, stop_states):

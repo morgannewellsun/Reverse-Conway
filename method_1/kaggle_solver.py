@@ -1,8 +1,8 @@
+# Attempt to solve the reverse game by dense neural network.
+
 import numpy as np
 import pandas as pd
 import time
-# Attempt to solve the reverse game by dense neural network.
-
 from gamelib.reversenet import ReverseNet
 from gamelib.logutil import init_game_log, kaggle_root
 
@@ -10,8 +10,9 @@ from gamelib.logutil import init_game_log, kaggle_root
 init_game_log('Reverse solver by neural net')
 
 # Max number of rows from the train/test.csv files.
+# Kaggle supplied training file has 50,001 lines
 # Use small numbers to test first.
-max_csv_rows = 500
+max_csv_rows = 60000
 
 def timing(title):
     global prev_t
@@ -37,11 +38,10 @@ def train_model():
 prev_t = time.time()
 board = (25, 25)
 board_size = np.product(board)
-rn = ReverseNet(board_size, [32, 32, 32, 32])
+rn = ReverseNet(board_size, [256, 64, 32, 32], epochs=1000)
 
 if rn.was_trained():
     rn.load()
-    rn.model.summary()
 else:
     train_model()
     rn.display_train()

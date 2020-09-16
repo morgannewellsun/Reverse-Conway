@@ -1,6 +1,7 @@
 # Implementation of Conway's Game of Life.
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class GameLife:
@@ -24,8 +25,8 @@ class GameLife:
         Return True if the board is still, False if the board changes.
         """
         
-        if not start_state:
-            if start_array:
+        if start_state is None:
+            if not start_array is None:
                 start_state = self._array_to_state(start_array)
             else:
                 raise Exception('Initial state or initial board must be provided.')
@@ -161,4 +162,25 @@ class GameLife:
             self._one_row(r - 1)
             self._one_row(r)
             self._one_row(r + 1)
+
+
+    def visual_error(self, start_array, iterations, end_array):
+        """ Visually show diff between projected end array from given start
+        and the target end.
+        """
+        self.run(start_array=start_array, iterations=iterations)
+        shp = (self._nrows, self._ncols)
+        plt.axis('off')
+        plt.title('Game of Life comparison for delta {}'.format(iterations))
+        board_start = np.array(start_array).reshape(shp)
+        board_calc = np.array(self._state_to_board(self.evolutions[-1]))
+        board_true = np.array(end_array).reshape(shp)
+        board_diff = board_calc ^ board_true
+        fill = -1
+        big_board = np.full((2*self._nrows+1, 2*self._ncols+1), fill)
+        big_board[0:self._nrows, 0:self._ncols] = board_start
+        big_board[0:self._nrows, (self._ncols+1):] = board_diff
+        big_board[(self._ncols+1):, 0:self._ncols] = board_calc
+        big_board[(self._ncols+1):, (self._ncols+1):] = board_true
+        plt.imshow(big_board, cmap = plt.cm.plasma)
 
