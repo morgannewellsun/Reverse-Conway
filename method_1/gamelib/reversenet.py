@@ -75,13 +75,14 @@ class ReverseNet:
         plt.savefig(self._predict_dir + 'train_perform.pdf')
 
 
-    def revert(self, stop_states):
+    def revert(self, stop_states, tofile = True):
         if not os.path.exists(self._predict_dir):
             os.makedirs(self._predict_dir)
         prob = self.model.predict(stop_states)
         df = pd.DataFrame(prob, index=stop_states.index)
-        df.to_csv(self._predict_dir + 'prob.csv')
         df.insert(0, 'delta', stop_states['delta'])
+        if tofile:
+            df.to_csv(self._predict_dir + 'prob.csv')
         for delta in set(stop_states.delta):
             strip = (df['delta']==delta)
             group_data = df.loc[strip, df.columns[1:]].to_numpy().flatten()
@@ -90,7 +91,8 @@ class ReverseNet:
             threshold = min(group_data[ind])
             df.loc[strip, df.columns[1:]] = (df.loc[strip, df.columns[1:]] > threshold)
         df.iloc[:, 1:] = df.iloc[:, 1:].astype(int)
-        df.to_csv(self._predict_dir + 'predict.csv')
+        if tofile:
+            df.to_csv(self._predict_dir + 'predict.csv')
         return (prob, df)
 
 

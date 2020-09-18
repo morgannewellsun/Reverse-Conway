@@ -38,7 +38,7 @@ def train_model():
 prev_t = time.time()
 board = (25, 25)
 board_size = np.product(board)
-rn = ReverseNet(board_size, [256, 64, 32, 32], epochs=1000)
+rn = ReverseNet(board_size, [256, 64, 32, 32, 32, 64], batches = 2048, epochs=100)
 
 if rn.was_trained():
     rn.load()
