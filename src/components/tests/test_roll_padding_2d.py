@@ -27,7 +27,7 @@ class TestProbConwayForwardLayer(unittest.TestCase):
         self.assertTrue(np.array_equal(expected_output, test_output))
 
     def test_call_batched(self):
-        test_input_i = np.array(range(25)).reshape((5, 5, 1))
+        test_input_i = np.array(range(25)).reshape((5, 5, 2))
         test_input = np.array([[test_input_i, test_input_i], [test_input_i, test_input_i]])
         layer = RollPadding2D(3)
         test_output = layer(test_input).numpy()
