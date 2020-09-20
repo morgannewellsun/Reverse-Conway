@@ -29,6 +29,7 @@ class TestProbConwayForwardLayer(unittest.TestCase):
              [0, 0, 0, 0, 1, 1, 0],
              [0, 0, 0, 0, 1, 1, 0],
              [0, 0, 0, 0, 0, 0, 0]]).astype(np.float32)
+        test_input = np.expand_dims(test_input, axis=-1)
         test_output = layer(test_input).numpy()
         print(test_output)
         a = 0.125
@@ -41,6 +42,7 @@ class TestProbConwayForwardLayer(unittest.TestCase):
              [0, 0, 0, 0, b, b, 0],
              [0, 0, 0, 0, b, b, 0],
              [0, 0, 0, 0, 0, 0, 0]])
+        expected_output = np.expand_dims(expected_output, axis=-1)
         self.assertTrue(np.array_equal(expected_output, test_output))
 
     def test_call_batched(self):
@@ -60,6 +62,7 @@ class TestProbConwayForwardLayer(unittest.TestCase):
               [0, 0, 0, 0, 0, 0, 0],
               [0, 0, 0, 0, 0, 0, 0],
               [0, 0, 0, 0, 0, 0, 0]]]).astype(np.float32)
+        test_input = np.expand_dims(test_input, axis=-1)
         test_output = layer(test_input).numpy()
         print(test_output)
         a = 0.125
@@ -79,6 +82,7 @@ class TestProbConwayForwardLayer(unittest.TestCase):
               [0, 0, 0, 0, 0, 0, 0],
               [0, 0, 0, 0, 0, 0, 0],
               [0, 0, 0, 0, 0, 0, 0]]])
+        expected_output = np.expand_dims(expected_output, axis=-1)
         self.assertTrue(np.array_equal(expected_output, test_output))
 
 

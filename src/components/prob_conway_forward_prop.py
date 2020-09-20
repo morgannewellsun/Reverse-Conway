@@ -11,7 +11,7 @@ class ProbConwayForwardProp(tf.keras.layers.Layer):
         self.indices_and_complements_8c3 = self._generate_indices_and_complements_8cr(3)
 
     def call(self, inputs, **kwargs):
-        probs_live_neighbors = [tf.roll(inputs, shift, (-2, -1)) for shift in self.moore_offsets]
+        probs_live_neighbors = [tf.roll(inputs, shift, (-3, -2)) for shift in self.moore_offsets]
         probs_dead_neighbors = [tf.math.subtract(1, probs) for probs in probs_live_neighbors]
         probs_exactly_two_live_neighbors = tf.reduce_sum(
             axis=0,
