@@ -2,10 +2,10 @@ import itertools
 import tensorflow as tf
 
 
-class ProbConwayForwardLayer(tf.keras.layers.Layer):
+class ProbConwayForwardProp(tf.keras.layers.Layer):
 
     def __init__(self):
-        super(ProbConwayForwardLayer, self).__init__()
+        super(ProbConwayForwardProp, self).__init__()
         self.moore_offsets = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1] if (i != 0 or j != 0)]
         self.indices_and_complements_8c2 = self._generate_indices_and_complements_8cr(2)
         self.indices_and_complements_8c3 = self._generate_indices_and_complements_8cr(3)
@@ -42,6 +42,5 @@ class ProbConwayForwardLayer(tf.keras.layers.Layer):
     @staticmethod
     def _generate_indices_and_complements_8cr(r: int):
         indices_8cr = [list(i) for i in itertools.combinations(range(8), r)]
-        complements_8cr = [
-            list([i for i in range(8) if i not in ixs]) for ixs in indices_8cr]
+        complements_8cr = [list([i for i in range(8) if i not in ixs]) for ixs in indices_8cr]
         return indices_8cr, complements_8cr
