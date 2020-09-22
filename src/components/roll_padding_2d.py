@@ -16,21 +16,18 @@ class RollPadding2D(tf.keras.layers.Layer):
         self._bottom_size_arg = None
 
     def build(self, input_shape):
-        batch_begin_arg = []
-        batch_size_arg = []
-        for batch_dim in input_shape[:-3]:
-            batch_begin_arg.append(0)
-            batch_size_arg.append(batch_dim)
+        batch_begin_arg = [0]
+        batch_size_arg = [-1]
         # x dimension
-        self._left_begin_arg = batch_begin_arg + [0, 0, 0]
-        self._left_size_arg = batch_size_arg + [input_shape[-3], self._padding, input_shape[-1]]
-        self._right_begin_arg = batch_begin_arg + [0, input_shape[-2] - self._padding, 0]
-        self._right_size_arg = batch_size_arg + [input_shape[-3], self._padding, input_shape[-1]]
+        self._left_begin_arg = tf.constant(batch_begin_arg + [0, 0, 0])
+        self._left_size_arg = tf.constant(batch_size_arg + [input_shape[-3], self._padding, input_shape[-1]])
+        self._right_begin_arg = tf.constant(batch_begin_arg + [0, input_shape[-2] - self._padding, 0])
+        self._right_size_arg = tf.constant(batch_size_arg + [input_shape[-3], self._padding, input_shape[-1]])
         # y dimension
-        self._top_begin_arg = batch_begin_arg + [0, 0, 0]
-        self._top_size_arg = batch_size_arg + [self._padding, input_shape[-2] + 2 * self._padding, input_shape[-1]]
-        self._bottom_begin_arg = batch_begin_arg + [input_shape[-3] - self._padding, 0, 0]
-        self._bottom_size_arg = batch_size_arg + [self._padding, input_shape[-2] + 2 * self._padding, input_shape[-1]]
+        self._top_begin_arg = tf.constant(batch_begin_arg + [0, 0, 0])
+        self._top_size_arg = tf.constant(batch_size_arg + [self._padding, input_shape[-2] + 2 * self._padding, input_shape[-1]])
+        self._bottom_begin_arg = tf.constant(batch_begin_arg + [input_shape[-3] - self._padding, 0, 0])
+        self._bottom_size_arg = tf.constant(batch_size_arg + [self._padding, input_shape[-2] + 2 * self._padding, input_shape[-1]])
 
     def call(self, inputs, **kwargs):
         left_slice = tf.slice(inputs, self._left_begin_arg, self._left_size_arg)

@@ -12,7 +12,7 @@ class ProbConwayForwardProp(tf.keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         probs_live_neighbors = [tf.roll(inputs, shift, (-3, -2)) for shift in self.moore_offsets]
-        probs_dead_neighbors = [tf.math.subtract(1, probs) for probs in probs_live_neighbors]
+        probs_dead_neighbors = [tf.math.subtract(1.0, probs) for probs in probs_live_neighbors]
         probs_exactly_two_live_neighbors = tf.reduce_sum(
             axis=0,
             input_tensor=[
