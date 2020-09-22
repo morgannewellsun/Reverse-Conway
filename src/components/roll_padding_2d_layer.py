@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 
-class RollPadding2D(tf.keras.layers.Layer):
+class RollPadding2DLayer(tf.keras.layers.Layer):
 
     def __init__(self, padding: int):
-        super(RollPadding2D, self).__init__()
+        super(RollPadding2DLayer, self).__init__()
         self._padding = padding
         self._left_begin_arg = None
         self._left_size_arg = None
@@ -16,8 +16,12 @@ class RollPadding2D(tf.keras.layers.Layer):
         self._bottom_size_arg = None
 
     def build(self, input_shape):
-        batch_begin_arg = [0]
-        batch_size_arg = [-1]
+        if len(input_shape) == 3:
+            batch_begin_arg, batch_size_arg = [], []
+        elif len(input_shape) == 4:
+            batch_begin_arg, batch_size_arg = [0], [-1]
+        else:
+            raise ValueError(f"RollPadding2DLayer recieved an input of shape {input_shape}. Dimension must be 3 or 4.")
         # x dimension
         self._left_begin_arg = tf.constant(batch_begin_arg + [0, 0, 0])
         self._left_size_arg = tf.constant(batch_size_arg + [input_shape[-3], self._padding, input_shape[-1]])
@@ -37,3 +41,6 @@ class RollPadding2D(tf.keras.layers.Layer):
         bottom_slice = tf.slice(x_dim_padded_inputs, self._bottom_begin_arg, self._bottom_size_arg)
         xy_dim_padded_inputs = tf.concat([bottom_slice, x_dim_padded_inputs, top_slice], axis=-3)
         return xy_dim_padded_inputs
+
+    def get_config(self):
+        return {"padding": self._padding}

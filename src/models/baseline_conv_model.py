@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-from components.prob_conway_forward_prop import ProbConwayForwardProp
-from components.roll_padding_2d import RollPadding2D
+from components.roll_padding_2d_layer import RollPadding2DLayer
 
 
 class BaselineConvModel(tf.keras.Model):
@@ -10,11 +9,11 @@ class BaselineConvModel(tf.keras.Model):
         super(BaselineConvModel, self).__init__()
         self._layers = []
         for _ in range(n_hidden_layers):
-            self._layers.append(RollPadding2D(1))
+            self._layers.append(RollPadding2DLayer(1))
             self._layers.append(
                 tf.keras.layers.Conv2D(n_filters, (3, 3), activation="relu"))
             self._layers.append(tf.keras.layers.BatchNormalization())
-        self._layers.append(RollPadding2D(1))
+        self._layers.append(RollPadding2DLayer(1))
         self._layers.append(tf.keras.layers.Conv2D(1, (3, 3), activation="sigmoid"))
         self._wrapped_model = tf.keras.Sequential(self._layers)
 

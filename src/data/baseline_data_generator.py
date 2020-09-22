@@ -6,10 +6,10 @@ import tensorflow as tf
 
 class BaselineDataGenerator(tf.keras.utils.Sequence):
 
-    def __init__(self, batch_size: int, board_size: Tuple[int, int] = (25, 25), batches_per_epoch: int = 1000):
-        self._board_size = board_size
+    def __init__(self, batch_size: int, batches_per_epoch: int):
         self._batch_size = batch_size
         self._batches_per_epoch = batches_per_epoch
+        self._board_size = (25, 25)
         self._batches = None
         self.on_epoch_end()
 
