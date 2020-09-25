@@ -1,12 +1,12 @@
 import datetime as dt
 import os
 
-import numpy as np
 import tensorflow as tf
 
 from components.true_target_acc_fn import TrueTargetAccFn
 from components.true_target_loss_fn import TrueTargetLossFn
 from data.kaggle_data_generator import KaggleDataGenerator
+from framework.visualization_callback import VisualizationCallback
 from models.baseline_conv_model import BaselineConvModel
 
 
@@ -18,10 +18,10 @@ class TrainingRunner:
     def run(self, delta_steps: int):
 
         # prepare data generator
-        train_generator = KaggleDataGenerator(batch_size=128, batches_per_epoch=100, delta_steps=delta_steps)
+        train_generator = KaggleDataGenerator(batch_size=128, batches_per_epoch=100, delta_steps=delta_steps, verbose=True)
 
         # prepare and compile the model
-        reverse_model = BaselineConvModel(n_filters=256, n_hidden_layers=12)
+        reverse_model = BaselineConvModel(n_filters=256, n_hidden_layers=delta_steps)
         loss_fn = TrueTargetLossFn(delta_steps=delta_steps)
         acc_fn = TrueTargetAccFn(delta_steps=delta_steps)
         reverse_model.compile(optimizer="adam", loss=loss_fn, metrics=[acc_fn])
@@ -33,14 +33,29 @@ class TrainingRunner:
         run_output_dir = os.path.join(root_output_dir, run_folder_name)
         os.mkdir(run_output_dir)
         checkpoint_filepath = os.path.join(run_output_dir, "best_checkpoint.hdf5")
-        callbacks = [tf.keras.callbacks.ModelCheckpoint(
-            checkpoint_filepath, monitor="TrueTargetAcc", verbose=1, save_best_only=True)]
+        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            checkpoint_filepath,
+            monitor="TrueTargetAcc",
+            verbose=1,
+            save_best_only=True)
+        visualization_callback = VisualizationCallback(
+            test_batches=train_generator,
+            delta_steps=delta_steps,
+            output_directory=run_output_dir,
+            epochs_per_visualization=1)
+        pretty_test_target_callback = VisualizationCallback(
+            test_batches=None,
+            delta_steps=delta_steps,
+            output_directory=run_output_dir,
+            epochs_per_visualization=5,
+            use_pretty_test_target=True)
+        callbacks = [checkpoint_callback, visualization_callback, pretty_test_target_callback]
         reverse_model.fit(x=train_generator, epochs=10000, callbacks=callbacks)
 
 
 if __name__ == "__main__":
     runner = TrainingRunner()
-    runner.run(delta_steps=4)
+    runner.run(delta_steps=2)
 
 
 
