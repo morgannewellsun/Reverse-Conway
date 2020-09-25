@@ -8,18 +8,28 @@ from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
 
 class KaggleDataGenerator(tf.keras.utils.Sequence):
 
-    def __init__(self, batch_size: int, batches_per_epoch: int, delta_steps: int):
+    def __init__(
+            self,
+            batch_size: int,
+            batches_per_epoch: int,
+            delta_steps: int,
+            density_bounds: Tuple[float, float] = (0.01, 0.99),
+            board_size: Tuple[int, int] = (25, 25),
+            verbose: bool = False):
         self._batch_size = batch_size
         self._batches_per_epoch = batches_per_epoch
         self._forward_steps = 5 + delta_steps
-        self._density_bounds = (0.01, 0.99)
-        self._board_size = (25, 25)
+        self._density_bounds = density_bounds
+        self._board_size = board_size
+        self._verbose = verbose
         self._batches = None
         self._rng = np.random.default_rng()
         self._binary_forward_prop = BinaryConwayForwardPropFn(numpy_mode=True)
         self.on_epoch_end()
 
     def on_epoch_end(self):
+        if self._verbose:
+            print("Generating a new epoch of randomized data.")
         self._batches = self._rng.uniform(0, 1, size=(
             self._batches_per_epoch, self._batch_size, *self._board_size, 1))
         thresholds = self._rng.uniform(*self._density_bounds, size=(
@@ -43,6 +53,7 @@ class KaggleDataGenerator(tf.keras.utils.Sequence):
         self._batches = self._batches.astype(np.float32)
 
     def __len__(self):
+        self.on_epoch_end()  # https://github.com/tensorflow/tensorflow/issues/35911
         return self._batches_per_epoch
 
     def __getitem__(self, index):
