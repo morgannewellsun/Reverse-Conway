@@ -5,32 +5,34 @@ import timeit
 
 
 def fcn1():
-    sum = 3**100000
-    one_bit_indexes = []
-    index = 0
-    while sum: # returns true if sum is non-zero
-        if sum & 1: # returns true if right-most bit is 1
-            one_bit_indexes.append(index)
-        sum >>= 1 # discard the right-most bit
-        index += 1
-    return one_bit_indexes
+    for num in range(small, big):
+        one_bit_indexes = []
+        index = 0
+        while num: # returns true if num is non-zero
+            if num & 1: # returns true if right-most bit is 1
+                one_bit_indexes.append(index)
+            num >>= 1 # discard the right-most bit
+            index += 1
 
 
+# The fastest
 def fcn2():
-    number = 3**100000
-    bits = []
-    for i, c in enumerate(bin(number)[:1:-1], 1):
-        if c == '1':
-            bits.append(i)
-    return bits
+    for num in range(small, big):
+        bits = []
+        for i, c in enumerate(bin(num)[:1:-1], 1):
+            if c == '1':
+                bits.append(i)
 
 
 def fcn3():
-    sum = 3**100000
-    return [i for i in range(sum.bit_length()) if sum & (1<<i)]
+    for num in range(small, big):
+        [i for i in range(num.bit_length()) if num & (1<<i)]
 
 
-print(timeit.timeit(fcn1, number=1))
+big = 2 ** (25*25)     # 3**10000     # 
+small = big - 10000
+# fcn1 is so slow. Take it out in competition.
+# print(timeit.timeit(fcn1, number=1))
 print(timeit.timeit(fcn2, number=1))
 print(timeit.timeit(fcn3, number=1))
 
