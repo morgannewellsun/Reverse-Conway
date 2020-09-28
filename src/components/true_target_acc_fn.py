@@ -4,16 +4,15 @@ from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
 from components.prob_conway_to_binary_conway_fn import ProbConwayToBinaryConwayFn
 
 
-class TrueTargetAccFn:
+class TrueTargetAccFn(tf.keras.losses.Loss):
 
-    __name__ = "TrueTargetAcc"
-
-    def __init__(self, delta_steps: int):
+    def __init__(self, delta_steps: int, name: str):
+        super(TrueTargetAccFn, self).__init__(name=name)
         self._delta_steps = delta_steps
         self._prob_to_binary = ProbConwayToBinaryConwayFn(threshold=0.5)
         self._binary_forward_prop = BinaryConwayForwardPropFn()
 
-    def __call__(self, y_true, y_pred):
+    def call(self, y_true, y_pred):
         y_pred = self._prob_to_binary(y_pred)
         for _ in range(self._delta_steps):
             y_pred = self._binary_forward_prop(y_pred)
@@ -24,3 +23,6 @@ class TrueTargetAccFn:
             tf.constant(1.0, dtype=tf.float32),
             tf.cast(tf.math.divide(n_correct, n_total), dtype=tf.float32))
         return true_target_acc
+
+    def get_config(self):
+        return {"delta_steps": self._delta_steps, "name": self.name}

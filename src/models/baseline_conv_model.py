@@ -7,18 +7,22 @@ class BaselineConvModel(tf.keras.Model):
 
     def __init__(self, n_filters: int, n_hidden_layers: int):
         super(BaselineConvModel, self).__init__()
-        self._layers = []
+        self._n_filters = n_filters
+        self._n_hidden_layers = n_hidden_layers
+        self._wrapped_model = tf.keras.Sequential()
         for _ in range(n_hidden_layers):
-            self._layers.append(RollPadding2DLayer(1))
-            self._layers.append(
+            self._wrapped_model.add(RollPadding2DLayer(1))
+            self._wrapped_model.add(
                 tf.keras.layers.Conv2D(n_filters, (3, 3), activation="relu"))
-            self._layers.append(tf.keras.layers.BatchNormalization())
-        self._layers.append(RollPadding2DLayer(1))
-        self._layers.append(tf.keras.layers.Conv2D(1, (3, 3), activation="sigmoid"))
-        self._wrapped_model = tf.keras.Sequential(self._layers)
+            self._wrapped_model.add(tf.keras.layers.BatchNormalization())
+        self._wrapped_model.add(RollPadding2DLayer(1))
+        self._wrapped_model.add(tf.keras.layers.Conv2D(1, (3, 3), activation="sigmoid"))
 
     def call(self, inputs, **kwargs):
         return self._wrapped_model(inputs)
+
+    def get_config(self):
+        return {"n_filters": self._n_filters, "n_hidden_layers": self._n_hidden_layers}
 
 
 if __name__ == "__main__":
