@@ -10,8 +10,8 @@ class GameLife:
         self._life_min = 2
         self._life_max = 3
         self._life_rev = 3
-        self._nrows = nrows
-        self._ncols = ncols
+        self.nrows = nrows
+        self.ncols = ncols
         self.evolutions = None
         self.is_still = False
         self._curr_state = None
@@ -19,17 +19,22 @@ class GameLife:
         self._procssed_rows = None     # The row that has been processed.
     
     
-    def run(self, start_state = None, start_array = None, iterations = 100):
-        """ Arg start_state is a list of locations of live cells.
-        A location is a tuple of two integers no less than 0.
+    def run(self, start_state = None, start_array = None,
+            start_binary = None, iterations = 100):
+        """ Arg start_state is a dictionary from row index 
+        to a set of column indexes specifying the locations of live cells.
+        A location is a tuple of two integers no less than 0: (row, column).
         Return True if the board is still, False if the board changes.
         """
         
         if start_state is None:
-            if not start_array is None:
+            if start_array is None:
+                if start_binary is None:
+                    raise Exception('Initial state or initial board must be provided.')
+                else:
+                    start_state = self._binary_to_state(start_binary)
+            else:                    
                 start_state = self._array_to_state(start_array)
-            else:
-                raise Exception('Initial state or initial board must be provided.')
         
         # A list of dictionaries, each maps row number
         # to a set of living cell column numbers.
@@ -53,6 +58,11 @@ class GameLife:
         return self.is_still
     
     
+    def run_binary(self, start_binary, iterations):
+        self.run(start_binary = start_binary, iterations=iterations)
+        return self.last_binary()
+
+    
     def last_board(self):
         return self._state_to_board(self.evolutions[-1])
 
@@ -61,10 +71,14 @@ class GameLife:
         return self._state_to_array(self.evolutions[-1])
 
 
+    def last_binary(self):
+        return self._state_to_binary(self.evolutions[-1])
+
+
     def _state_to_board(self, lives):
         """ Convert a life dictionary to 2D array. 
         """
-        arr = [[0] * self._ncols for j in range(self._nrows)]
+        arr = [[0] * self.ncols for j in range(self.nrows)]
         for r, cset in lives.items():
             for c in cset:
                 arr[r][c] = 1
@@ -74,20 +88,41 @@ class GameLife:
     def _state_to_array(self, lives):
         """ Convert a life dictionary to 1D array. 
         """
-        arr = [0] * (self._nrows * self._ncols)
+        arr = [0] * (self.nrows * self.ncols)
         for r, cset in lives.items():
             for c in cset:
-                arr[r * self._nrows + c] = 1
+                arr[r * self.nrows + c] = 1
         return arr
     
     
     def _array_to_state(self, arr):
         state = dict()
-        for r in range(self._nrows):
-            for c in range(self._ncols):
-                if arr[r * self._ncols + c]:
+        for r in range(self.nrows):
+            for c in range(self.ncols):
+                if arr[r * self.ncols + c]:
                     state.setdefault(r, set()).add(c)
-        # map(lambda j: state.setdefault(j // self._ncols, set()).add(j % self._ncols) if arr[j] else None, arr)
+        # map(lambda j: state.setdefault(j // self.ncols, set()).add(j % self.ncols) if arr[j] else None, arr)
+        return state
+    
+    
+    def array_to_binary(self, arr):
+        return int(''.join(map(str, arr)), 2)
+
+
+    def _state_to_binary(self, lives):
+        chromo = 0
+        for r in range(self.nrows):
+            for c in range(self.ncols):
+                if r in lives and c in lives[r]:
+                    chromo += 1 << r * self.ncols + c
+        return chromo
+    
+    
+    def _binary_to_state(self, chromo):
+        state = dict()
+        for i, c in enumerate(bin(chromo)[:1:-1], 1):
+            if c == '1':
+                state.setdefault(i//self.ncols, set()).add(i%self.nrows)
         return state
 
 
@@ -113,7 +148,7 @@ class GameLife:
         # Rows row1 and row3 are two rows above and below row2.
         # We are checing if cell p in row2 should be live.
 
-        xnbor = {(p-1) % self._ncols, p, (p+1) % self._ncols}
+        xnbor = {(p-1) % self.ncols, p, (p+1) % self.ncols}
         cnt = len(xnbor & row1) + len(xnbor & row2) + len(xnbor & row3)
         if p in row2:
             # Live cell case. There are cnt-1 live neighbors.
@@ -128,14 +163,14 @@ class GameLife:
 
 
     def _one_row(self, r):
-        r = r % self._nrows
+        r = r % self.nrows
         if r in self._procssed_rows:
             return
         self._procssed_rows.add(r)
 
-        row1 = self._prev_state.get((r - 1) % self._nrows, set())
+        row1 = self._prev_state.get((r - 1) % self.nrows, set())
         row2 = self._prev_state.get(r, set())
-        row3 = self._prev_state.get((r + 1) % self._nrows, set())
+        row3 = self._prev_state.get((r + 1) % self.nrows, set())
         if len(row1) + len(row2) + len(row3) < self._life_min:
             # The 3 neighbor rows don't contain enough live cells.
             # All cells in this row will be dead.
@@ -146,7 +181,7 @@ class GameLife:
         processed_cells = set()
         for c in row1 | row2 | row3:
             for p in (c-1, c, c+1):
-                q = p % self._ncols
+                q = p % self.ncols
                 if not q in processed_cells:
                     if self._should_live(q, row1, row2, row3):
                         lifes.add(q)
@@ -169,7 +204,7 @@ class GameLife:
         and the target end.
         """
         self.run(start_array=start_array, iterations=iterations)
-        shp = (self._nrows, self._ncols)
+        shp = (self.nrows, self.ncols)
         plt.axis('off')
         plt.title('Game of Life comparison for delta {}'.format(iterations))
         board_start = np.array(start_array).reshape(shp)
@@ -177,10 +212,10 @@ class GameLife:
         board_true = np.array(end_array).reshape(shp)
         board_diff = board_calc ^ board_true
         fill = -1
-        big_board = np.full((2*self._nrows+1, 2*self._ncols+1), fill)
-        big_board[0:self._nrows, 0:self._ncols] = board_start
-        big_board[0:self._nrows, (self._ncols+1):] = board_diff
-        big_board[(self._ncols+1):, 0:self._ncols] = board_calc
-        big_board[(self._ncols+1):, (self._ncols+1):] = board_true
+        big_board = np.full((2*self.nrows+1, 2*self.ncols+1), fill)
+        big_board[0:self.nrows, 0:self.ncols] = board_start
+        big_board[0:self.nrows, (self.ncols+1):] = board_diff
+        big_board[(self.ncols+1):, 0:self.ncols] = board_calc
+        big_board[(self.ncols+1):, (self.ncols+1):] = board_true
         plt.imshow(big_board, cmap = plt.cm.plasma)
 
