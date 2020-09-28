@@ -14,7 +14,7 @@ init_game_log('Reverse solver by neural net')
 # Max number of rows from the train/test.csv files.
 # Kaggle supplied training file has 50,001 lines
 # Use small numbers to test first.
-max_csv_rows = 200
+max_csv_rows = 10
 
 def timing(title):
     global prev_t
@@ -30,7 +30,7 @@ prev_t = time.time()
 board = (25, 25)
 board_size = np.product(board)
 err_stats = [0] * board_size
-ga = ReverseGa(nrows=25, ncols=25, pop_size=100, max_iters=400,
+ga = ReverseGa(nrows=25, ncols=25, pop_size=100, max_iters=200,
                crossover_rate=1, mutation_rate=0.3, tracking=True)
 
 data = pd.read_csv(kaggle_root + 'test.csv', index_col=0, dtype='int', nrows=max_csv_rows)

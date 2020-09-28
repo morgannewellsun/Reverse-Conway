@@ -32,6 +32,7 @@ class ReverseGa:
         self._delta = delta
         self._target = self._gl.array_to_binary(stop_state)
         self._reset_all()
+        # sunheng: The above line is a serious bug as it set _delta to 0.
 
         self._mutants = {self._gl.array_to_binary(ss) for ss in guess}
         if len(guess) < self._pop_size:
