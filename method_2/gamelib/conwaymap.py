@@ -57,7 +57,7 @@ class ConwayMap:
         (0,0), (1,0), (2,1), (2,2). 
         Return the state (an integer) after iterations.
         """
-        if start_binary:
+        if not start_binary is None:
             self._curr_state = start_binary
         for j in range(iterations):
             self._prev_state = self._curr_state

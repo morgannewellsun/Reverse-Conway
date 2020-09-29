@@ -3,14 +3,14 @@
 import pandas as pd
 import random    # don't use np.random since it accepts only int32, too small.
 import logging
-from .gamelife import GameLife
+from .conwaymap import ConwayMap
 
 
 class ReverseGa:
     
     def __init__(self, nrows, ncols, pop_size, max_iters,
                  crossover_rate = 1, mutation_rate = 0.5, tracking = True):
-        self._gl = GameLife(nrows, ncols)
+        self._gl = ConwayMap(nrows, ncols)
         self._chromo_len = nrows * ncols
         self._max_chromo = 2  ** self._chromo_len - 1
         self._pop_size = pop_size
@@ -30,11 +30,10 @@ class ReverseGa:
             guess is a tuple or list or set of initial states.
         """
         self._delta = delta
-        self._target = self._gl.array_to_binary(stop_state)
+        self._target = self._gl.str_to_bin(''.join(map(str, stop_state)))
         self._reset_all()
-        # sunheng: The above line is a serious bug as it set _delta to 0.
 
-        self._mutants = {self._gl.array_to_binary(ss) for ss in guess}
+        self._mutants = {self._gl.str_to_bin(''.join(map(str, ss))) for ss in guess}
         if len(guess) < self._pop_size:
             self._mutants |= {random.randint(3, self._max_chromo-5)
                               for j in range(self._pop_size)}
@@ -75,7 +74,7 @@ class ReverseGa:
         
 
     def _mutate(self):
-        rand_bits = random.choices(range(1, self._chromo_len+1), k=self._nmutations)
+        rand_bits = random.choices(range(1, self._chromo_len), k=self._nmutations)
         parents = random.choices(self._curr_pop['chromo'].tolist(), k = self._nmutations)
         self._mutants = {p^(1<<b) for p, b in zip(parents, rand_bits)}
 
@@ -95,7 +94,7 @@ class ReverseGa:
         """ Trim down current population to _pop_size
         """
         new_pop = (self._mutants | self._babies) - self._evaluated
-        diffs = [[b, bin(self._gl.run_binary(b, self._delta)^self._target).count('1')]
+        diffs = [[b, bin(self._gl.run(b, self._delta)^self._target).count('1')]
                  for b in new_pop]
         self._evaluated |= new_pop
         addition = pd.DataFrame(diffs, columns=('chromo', 'diffs'))

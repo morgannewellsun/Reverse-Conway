@@ -24,15 +24,15 @@ class ReverseGa:
         pd.set_option('display.max_colwidth', None)
 
 
-    def revert(self, delta, stop_state, guess):
+    def revert(self, delta, stop_state, guess = set()):
         """ Arguments:
             stop_state is the integer representation of the stop state.
-            guess is a tuple or list or set of initial states.
+            guess is a set of initial states.
         """
         self._reset_all()
         self._delta = delta
         self._target = stop_state
-        self._mutants = guess
+        self._mutants = (guess | {0, stop_state})
         if len(guess) < self._pop_size:
             # Not enough intial guesses are supplied. Use random states.
             self._mutants |= {random.randint(3, self._max_chromo-5)
