@@ -11,6 +11,7 @@ from data.pretty_test_target import pretty_test_target
 from framework.visualization_callback import VisualizationCallback
 from framework.visualizer import Visualizer
 from models.baseline_conv_model import BaselineConvModel
+from models.three_plus_ones_block_model import ThreePlusOnesBlockModel
 
 
 class TrainingRunner:
@@ -27,35 +28,34 @@ class TrainingRunner:
             max_epochs: int
     ) -> None:
 
-        # cache run config parameters
+        # create run folder and save run config
         run_config_dict = locals().copy()
-
-        # create run output directory
         run_folder_name = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
         run_folder_name = os.path.join(run_folder_name, "")
         run_output_dir = os.path.join(root_output_dir, run_folder_name)
         os.mkdir(run_output_dir)
-
-        # save run config parameters
         run_config_filepath = os.path.join(run_output_dir, "run_config.json")
         with open(run_config_filepath, "w") as file:
             json.dump(run_config_dict, file, indent=4)
 
         # prepare data generator
         if generator_name == "KaggleDataGenerator":
-            train_generator = KaggleDataGenerator(
-                delta_steps=delta_steps, **generator_config)
+            train_generator = KaggleDataGenerator(delta_steps=delta_steps, **generator_config)
         else:
             raise ValueError(f"{generator_name} is not a supported data generator.")
 
         # prepare the model
         if model_name == "BaselineConvModel":
             reverse_model = BaselineConvModel(**model_config)
+        elif model_name == "ThreePlusOnesBlockModel":
+            reverse_model = ThreePlusOnesBlockModel(**model_config)
         else:
             raise ValueError(f"{model_name} is not a supported model.")
         loss_fn = TrueTargetLossFn(delta_steps=delta_steps, name="TrueTargetLoss")
         acc_fn = TrueTargetAccFn(delta_steps=delta_steps, name="TrueTargetAcc")
         reverse_model.compile(optimizer="adam", loss=loss_fn, metrics=[acc_fn])
+        reverse_model.build(input_shape=(None, 25, 25, 1))
+        reverse_model.summary()
 
         # prepare callbacks
         checkpoint_filepath = os.path.join(run_output_dir, "best_checkpoint.hdf5")
@@ -113,9 +113,18 @@ if __name__ == "__main__":
             root_output_dir=r"D:\Documents\Reverse Conway\Output",
             delta_steps=delta_steps,
             generator_name="KaggleDataGenerator",
-            generator_config={"batch_size": 256, "verbose": True},
+            generator_config={"batch_size": 256, "samples_per_epoch": 2**16, "verbose": True},
             model_name="BaselineConvModel",
             model_config={"n_filters": 128, "n_hidden_layers": 10},
+            early_stop_patience=20,
+            max_epochs=1000)
+        TrainingRunner.run(
+            root_output_dir=r"D:\Documents\Reverse Conway\Output",
+            delta_steps=delta_steps,
+            generator_name="KaggleDataGenerator",
+            generator_config={"batch_size": 256, "samples_per_epoch": 2 ** 16, "verbose": True},
+            model_name="ThreePlusOnesBlockModel",
+            model_config={"n_filters": 128, "n_blocks": delta_steps, "n_layers_per_block": 10},
             early_stop_patience=20,
             max_epochs=1000)
 

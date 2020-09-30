@@ -12,12 +12,12 @@ class KaggleDataGenerator(tf.keras.utils.Sequence):
             self,
             delta_steps: int,
             batch_size: int,
-            boards_per_epoch: int = 2**14,
+            samples_per_epoch: int,
             density_bounds: Tuple[float, float] = (0.01, 0.99),
             board_size: Tuple[int, int] = (25, 25),
             verbose: bool = False):
         self._batch_size = batch_size
-        self._batches_per_epoch = int(boards_per_epoch / batch_size)
+        self._batches_per_epoch = int(samples_per_epoch / batch_size)
         self._forward_steps = 5 + delta_steps
         self._density_bounds = density_bounds
         self._board_size = board_size
