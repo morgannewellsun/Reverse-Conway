@@ -8,19 +8,19 @@ from gamelib.reversega import ReverseGa
 from gamelib.logutil import init_game_log, kaggle_root, timing
 from gamelib.conwaymap import ConwayMap
 
-init_game_log('Reverse solver by genetic algorithm', lvl = logging.ERROR)
+init_game_log('Reverse solver by genetic algorithm', lvl = logging.INFO)
 
 # Max number of rows from the train/test.csv files.
 # Kaggle supplied training file has 50,001 lines
 # Use small numbers to test first.
-max_csv_rows = 50
+max_csv_rows = 5
 report_freq = 1000
 
 random.seed(0)
 
 conway = ConwayMap(nrows=25, ncols=25)
-ga = ReverseGa(conway, pop_size=5, max_iters=5,
-               crossover_rate=1, mutation_rate=0.5, tracking=False)
+ga = ReverseGa(conway, pop_size=10, max_iters=20,
+               crossover_rate=1, mutation_rate=0.5, tracking=True)
 err_stats = [0] * conway.size
 count_stats = [0] * conway.size
 fail_stats = [0] * conway.size
@@ -33,14 +33,14 @@ for idx, row in data.iterrows():
     lives = row[1:].to_list().count('1')
     state = conway.str_to_bin(''.join(row[1:]))
     err_cnt = ga.revert(delta, state)
+    msg = 'Run {}: lives={}, delta={}, errors={}'.format(idx, lives, delta, err_cnt)
+    # print(msg)
+    logging.info(msg)
     err_stats[err_cnt] += 1
     count_stats[lives] += 1
     fail_stats[lives] += err_cnt
     delta_rows[delta] += 1
     delta_errors[delta] += err_cnt
-    msg = 'Run {} has {} lives with {} errors'.format(idx, lives, err_cnt)
-    # print(msg)
-    logging.info(msg)
     if idx % report_freq == 0:
         t = timing()
         print('Processed row {} after {} since last reported.'.format(idx, t))
