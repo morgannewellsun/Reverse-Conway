@@ -3,10 +3,10 @@ import tensorflow as tf
 from components.roll_padding_2d_layer import RollPadding2DLayer
 
 
-class DenseBlock(tf.keras.Model):
+class _DenseBlock(tf.keras.Model):
 
     def __init__(self, n_filters: int, is_input: bool = False, is_output: bool = False):
-        super(DenseBlock, self).__init__()
+        super(_DenseBlock, self).__init__()
         self._n_filters = n_filters
         self._is_input = is_input
         self._is_output = is_output
@@ -24,7 +24,7 @@ class DenseBlock(tf.keras.Model):
             inputs = self._batch_norm_layer(inputs)
         inputs = self._roll_padding_layer(inputs)
         inputs = self._convolution_layer(inputs)
-        if self._is_output:
+        if not self._is_output:
             inputs = self._concatenate_layer([original_inputs, inputs])
         return inputs
 
@@ -39,7 +39,7 @@ class SimplifiedDenseNetModel(tf.keras.Sequential):
         self._growth_rate = growth_rate
         self._n_layers = n_layers
         for i in range(n_layers):
-            self.add(DenseBlock(growth_rate, is_input=(i == 0), is_output=(i == n_layers - 1)))
+            self.add(_DenseBlock(growth_rate, is_input=(i == 0), is_output=(i == n_layers - 1)))
 
     def get_config(self):
         return {"growth_rate": self._growth_rate, "n_layers": self._n_layers}
