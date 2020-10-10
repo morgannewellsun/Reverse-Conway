@@ -14,6 +14,7 @@ from components.reversega import ReverseGa
 
 
 def mylog(msg):
+    # tensorflow customized the logggin. Don't want to fight it.
     logging.critical(datetime.now().isoformat(' ') + ' ' + msg)
 
 
@@ -37,16 +38,29 @@ def save_results(all_results):
     else:
         data = pd.DataFrame(all_results, coloums = ['Game Index', 'Start'])
     data.to_csv(output_dir + 'results.csv')
+    pd.DataFrame([
+        ['max_csv_rows', max_csv_rows],
+        ['rand_seed', rand_seed],
+        ['ga_pop_size', ga_pop_size],
+        ['ga_max_iters', ga_max_iters],
+        ['ga_cross', ga_cross],
+        ['ga_mutate', ga_mutate],
+        ['delta_1_only', delta_1_only],
+        ['start_time', start_time],
+        ['end_time', end_time]
+        ], columns=('key', 'value')
+        ).to_csv(output_dir + 'config.csv')
     
 
 
 mylog('Reverse Conway started.')
 prev_t = time.time()
+start_time = datetime.now().isoformat(' ')
 
-# Load CNN solvers from files.
+#### Load CNN solvers from files.
 cnn_solver = list()
 # Load only the model for delta = 1
-delta_1_only = False
+delta_1_only = True
 for j in range(1, 6):
     path_to_saved_model = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_' + str(j)
     cnn = tf.keras.models.load_model(path_to_saved_model, compile=False)  # compile=True will fail!
@@ -55,16 +69,24 @@ for j in range(1, 6):
         break
 mylog('CNN models loaded after {}'.format(timing()))
 
-# Load Kaggle test files
-max_csv_rows = 1000
+
+#### Load Kaggle test files
+max_csv_rows = 100
 data = pd.read_csv('../../gamelife_data/kaggle/test.csv',
                    index_col=0, dtype='int', nrows=max_csv_rows)
 mylog('Kaggle file loaded after {}'.format(timing()))
 
+
+#### Apply GA to improve.
+rand_seed = 0
+random.seed(rand_seed)        # Used in genetic algorithm ReverseGa
+ga_pop_size = 10
+ga_max_iters = 10
+ga_cross = 1
+ga_mutate = 0.5
 conway = ConwayMap(nrows=25, ncols=25)
-random.seed(0)        # Used in genetic algorithm ReverseGa
-ga = ReverseGa(conway, pop_size=20, max_iters=20,
-               crossover_rate=1, mutation_rate=0.5, tracking=True)
+ga = ReverseGa(conway, pop_size=ga_pop_size, max_iters=ga_max_iters,
+               crossover_rate=ga_cross, mutation_rate=ga_mutate, tracking=True)
 
 status_freq = 1000
 all_results = []
@@ -79,6 +101,7 @@ for idx, row in data.iterrows():
     if idx % status_freq == 0:
         mylog('Completed game {} after {}.'.format(idx, timing()))
 
+end_time = datetime.now().isoformat(' ')
 save_results(all_results)
-mylog('Solver completed after {}.'.format(timing()))
+mylog('Solver completed.')
 
