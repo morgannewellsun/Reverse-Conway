@@ -39,6 +39,7 @@ def save_results(all_results):
         data = pd.DataFrame(all_results, coloums = ['Game Index', 'Start'])
     data.to_csv(output_dir + 'results.csv')
     pd.DataFrame([
+        ['cnn_path', cnn_path],
         ['max_csv_rows', max_csv_rows],
         ['rand_seed', rand_seed],
         ['ga_pop_size', ga_pop_size],
@@ -60,9 +61,11 @@ start_time = datetime.now().isoformat(' ')
 #### Load CNN solvers from files.
 cnn_solver = list()
 # Load only the model for delta = 1
-delta_1_only = True
+delta_1_only = False
+cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
+# cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
 for j in range(1, 6):
-    path_to_saved_model = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_' + str(j)
+    path_to_saved_model = cnn_path + str(j)
     cnn = tf.keras.models.load_model(path_to_saved_model, compile=False)  # compile=True will fail!
     cnn_solver.append(cnn)
     if delta_1_only:
@@ -71,7 +74,7 @@ mylog('CNN models loaded after {}'.format(timing()))
 
 
 #### Load Kaggle test files
-max_csv_rows = 100
+max_csv_rows = 10
 data = pd.read_csv('../../gamelife_data/kaggle/test.csv',
                    index_col=0, dtype='int', nrows=max_csv_rows)
 mylog('Kaggle file loaded after {}'.format(timing()))
@@ -80,15 +83,15 @@ mylog('Kaggle file loaded after {}'.format(timing()))
 #### Apply GA to improve.
 rand_seed = 0
 random.seed(rand_seed)        # Used in genetic algorithm ReverseGa
-ga_pop_size = 10
-ga_max_iters = 10
+ga_pop_size = 20
+ga_max_iters = 20
 ga_cross = 1
 ga_mutate = 0.5
 conway = ConwayMap(nrows=25, ncols=25)
 ga = ReverseGa(conway, pop_size=ga_pop_size, max_iters=ga_max_iters,
                crossover_rate=ga_cross, mutation_rate=ga_mutate, tracking=True)
 
-status_freq = 1000
+status_freq = 100
 all_results = []
 for idx, row in data.iterrows():
     delta = row[0]

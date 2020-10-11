@@ -61,14 +61,7 @@ del_stats = pd.DataFrame([[0]*5]*6, columns=(
 for j, row in data.iterrows():
     (game_index, delta, target_lives, cnn_lives, cnn_errors,
      ga_lives, ga_errors) = map(int, row[:7])
-    # game_index = row[0]
-    # delta = row[1]
-    # target_lives = row[2]
-    # cnn_lives = row[3]
-    # cnn_errors = row[4]
-    # ga_lives = row[5]
-    # ga_errors = row[6]
-    
+
     err_stats.iloc[ga_errors, delta] += 1
     liv_stats.iloc[target_lives, 0] += 1
     liv_stats.iloc[target_lives, 1] += cnn_errors
