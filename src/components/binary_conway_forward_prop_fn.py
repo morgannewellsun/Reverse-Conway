@@ -10,7 +10,19 @@ class BinaryConwayForwardPropFn:
         self._numpy_mode = numpy_mode
         self._moore_offsets = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1] if (i != 0 or j != 0)]
 
-    def __call__(self, inputs):
+    def __call__(self, inputs, delta = 1):
+        # inputs is a np array of at least 3D, usually 4D, of shape:
+        # (batch_size, game board width, game board height, 1).
+        # outputs will be of the same shape as inputs.
+        # For an example of use, see
+        # Reverse-Conway/src/data/tests/verify_kaggle_training.py
+        outputs = inputs
+        for _ in range(delta):
+            outputs = self._one_delta(outputs)
+        return outputs
+
+
+    def _one_delta(self, inputs):
         if self._numpy_mode:
             neighbors = [np.roll(inputs, shift, (-3, -2)) for shift in self._moore_offsets]
             live_neighbor_counts = np.count_nonzero(neighbors, axis=0)
