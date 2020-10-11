@@ -1,0 +1,86 @@
+
+### 1: "Unsupervised" vs "Supervised" training paradigms ###
+
+**Unsupervised training paradigm:**
+```
+1. Generate STOP_TRUE states.
+2. START_PRED = model(STOP_TRUE)
+3. STOP_PRED = probabilistically_propagate(START_PRED)
+4. loss = bce(STOP_TRUE, STOP_PRED)
+```
+
+**Supervised training paradigm:**
+```
+1. Generate (START_TRUE, STOP_TRUE) pairs.
+2. START_PRED = model(STOP_TRUE)
+3. loss = bce(START_TRUE, START_PRED)
+```
+
+Findings: 
+
+At first, the unsupervised training paradigm appears to perform better. 
+After training, the difference between STOP_PRED and STOP_TRUE is quite small, only a 1.5% error for delta = 1.
+However, this model has a critical flaw!
+Due to the way the loss is implemented (binary crossentropy on the stop states), it is trained to optimize the accuracy of STOP_PRED, but it does not care about what kind of START_PRED it predicts, since START_PRED is not directly involved in the loss.
+This means that it will use some really weird heuristics to predict START_PRED.
+Therefore, START_PRED predictions may be states that are unlikely/impossible to arise naturally in the Conway game.
+As a result, the START_PRED output of this kind of model is not very useful as a prior for GA, since the predicted START_PRED might deviate a huge amount from the correct start state, and the model doesn't care, as long as the resulting STOP_PRED is close to STOP_TRUE.
+
+The supervised training paradigm, despite having lower accuracy metrics, is more useful for GA.
+This is because it is trained to optimize the accuracy of START_PRED, which will be used as the prior for GA.
+The STOP_PRED accuracy suffers a bit, but this is just due to the chaotic nature of Conway's game.
+
+In summary:
+
+Unsupervised => optimized STOP_PRED at expense of START_PRED
+Supervised => optimized START_PRED at expense of STOP_PRED
+We want optimized START_PRED, so we should go with the supervised paradigm.
+
+### 2: CNN performance at different deltas ###
+
+At delta = 1, the CNN can perform reasonably well, with an error rate of about 5~6%.
+At delta = 2, the CNN suffers a lot more, with an error rate of about 11~12%.
+At delta > 2, the CNN is useless, because the error rate is 14~15%, which can be achieved simply by predicting an empty board.
+
+Previously, the plan was to use the following strategy:
+```
+1. Load CNN_1, CNN_2, CNN_3, CNN_4, CNN_5 corresponding to five delta values
+2. For each (delta, stop_true) in problems:
+3.     start_prior = CNN_delta(stop_true)
+4.     initialize GA population using start_prior, then run GA to find correct starting board
+```
+
+However, this strategy will not work well for problems with delta > 1, since the start_prior will not be much use. I suggest we consider the following strategy instead:
+```
+1. Load CNN_1
+2. For each (delta, stop_true) in problems:
+3.     curr_board = stop_true
+4.     For delta iterations:
+5.         prev_prior = CNN_1(curr_board)
+6.         initialize GA population using prev_prior, then run GA to find correct previous board prev_true
+7.         curr_board = prev_true
+```
+
+### 3: Optimizing GA by iteratively narrowing the search space ###
+
+Unsure if this idea has already been explored by dad. I think it is worth pursuing.
+
+Notice that, if we adopt the strategy suggested above, we only need to do GA for delta = 1.
+
+The key insight here is that, for delta = 1, it is easy to verify that a subset of the board is guaranteed to be correct.
+For example, suppose we have some candidate start state. 
+After propagating forward one step and comparing to the known stop state, we find that the 3x3 section located at [7:10, 3:6] of the resulting stop state is correct. 
+From this, we can conclude that cell [8, 4] (the center of the 3x3 section) of the candidate start state was definitely correct.
+We can immediately copy this known correct cell to all members of the GA population.
+We can also stop mutating and performing crossover on this cell.
+By doing this, we can iteratively narrow down the area of the board to which we apply mutations and crossover.
+This might eliminate some useless mutations and allow the population to converge to the correct solution more quickly.
+
+This might result in substantial speedup of the GA, more so than simple technical optimizations.
+
+### 4. Tensorflow GA ###
+
+It may be worth trying to implement GA using tensorflow so that it can run on the GPU.
+It appears that tensorflow already has some implementation of this, so this means it is certainly possible.
+We probably will have to write our own implementation, though.
+
