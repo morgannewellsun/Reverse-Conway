@@ -7,6 +7,7 @@ import pathlib
 from datetime import datetime
 from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
 from components.reversega import ReverseGa
+from data.revconwayreport import post_run_report
 
 
 max_csv_rows = 100           # maximum number of rows loaded
@@ -41,11 +42,13 @@ def timing():
     return '{}:{}:{}'.format(t_hour, t_min, t_sec)
 
 
+result_header = [
+    'Game Index', 'Delta', 'Target Lives', 'CNN Lives', 'CNN Errors',
+    'GA Lives', 'GA Errors', 'Target State', 'CNN Start', 'GA Start']
+
 def save_results(all_results):
     if len(all_results[0]) > 2:
-        data = pd.DataFrame(all_results, columns = [
-            'Game Index', 'Delta', 'Target Lives', 'CNN Lives', 'CNN Errors',
-            'GA Lives', 'GA Errors', 'Target State', 'CNN Start', 'GA Start'])
+        data = pd.DataFrame(all_results, columns = result_header)
     else:
         data = pd.DataFrame(all_results, coloums = ['Game Index', 'Start'])
     data.to_csv(output_dir + 'results.csv')
@@ -63,7 +66,9 @@ def save_results(all_results):
         ['end_time', end_time]
         ], columns=('key', 'value')
         ).to_csv(output_dir + 'config.csv')
-    
+    # Generate more statistical reports based on the above files.
+    post_run_report(output_dir)
+
 
 
 mylog('Reverse Conway started.')
@@ -109,8 +114,9 @@ with open(output_dir + 'details.txt', 'w') as detail_file:
         res = ga.refine_cnn(idx, delta, np.array(row[1:].to_list()), solv_1)
         all_results.append(res)
         if track_details:
-            detail_file.write('Game {} with delta {}:\n{}\n\n'.format(
-                idx, delta, ga.summary()))
+            res_dict = dict(zip(result_header[:7], res[:7]))
+            detail_file.write('Details for {}:\n{}\n\n'.format(
+                res_dict, ga.summary()))
         if idx % status_freq == 0:
             mylog('Completed game {} after {}.'.format(idx, timing()))
 

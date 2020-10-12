@@ -56,11 +56,11 @@ class ReverseGa:
         # Arg target is the 1D array of 0/1 integers representation of the end state.
         # Arg cnn_result is a 4D numpy array of probabilities as result of CNN,
         # of size (1, 25, 25, 1)
+        
+        end_state = target.reshape(
+            (1, self.conway.nrows, self.conway.ncols, 1))
         if cnn_result is None:
             initial = None
-            cnn_guess = np.array([0])
-            cnn_lives = 0
-            cnn_errors = 0
         else:
             life50 = (cnn_result < 0.5).sum()
             half_pop = int(self.pop_size / 2)
@@ -68,19 +68,22 @@ class ReverseGa:
             sorted_probs = sorted(cnn_result.flatten())
             # This is a list of 1D 0/1 arrays representing the boards from CNN.
             initial = [(cnn_result[0] > sorted_probs[j]).tolist() for j in selected]
-            initial = np.array(initial).astype(int)
-            cnn_guess = initial[half_pop]
-            cnn_lives = cnn_guess.sum()
-            cnn_errors = abs(self.conway(cnn_guess, delta) - target).sum()
-        
-        end_state = target.reshape(
-            (1, self.conway.nrows, self.conway.ncols, 1))
+
         ga_result = self.revert(delta, end_state, guess = initial)
         if not self._tracking:
             return [game_idx, ga_result]
         
         target_lives = target.sum()
         ga_lives = ga_result.sum()
+        if cnn_result is None:
+            cnn_guess = np.array([0])
+            cnn_lives = 0
+            cnn_errors = 0
+        else:
+            cnn_guess = initial[half_pop]
+            cnn_guess = np.array([cnn_guess]).astype(int)
+            cnn_lives = cnn_guess.sum()
+            cnn_errors = abs(self.conway(cnn_guess, delta) - end_state).sum()
         return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
                 ga_lives, self._best_error, 
                 ''.join(map(str, end_state.flatten().tolist())),
