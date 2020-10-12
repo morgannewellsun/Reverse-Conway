@@ -1,10 +1,11 @@
 import pandas as pd
+import numpy as np
 import time
-from components.conwaymap import ConwayMap
+from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
 
 # Randomly take a row in the data and verify the numbers are correct.
 def sample_verify():
-    conway = ConwayMap(nrows=25, ncols=25)
+    conway = BinaryConwayForwardPropFn(numpy_mode=True)
     nrows = len(data)
     # Randomly take a row to verify.  Avoid random() since seed is fixed.
     # Use current time digits after the decimal point.
@@ -13,31 +14,31 @@ def sample_verify():
     (game_index, delta, target_lives, cnn_lives, cnn_errors,
      ga_lives, ga_errors) = map(int, row[:7])
     (target, cnn, ga) = row[7:]
-    end_state = int(target)
-    cnn_state = int(cnn)
-    ga_state = int(ga)
+    end_state = np.array(list(target)).astype(int).reshape((1,25,25,1))
+    cnn_state = np.array(list(cnn)).astype(int).reshape((1,25,25,1))
+    ga_state = np.array(list(ga)).astype(int).reshape((1,25,25,1))
     
-    expect = bin(end_state).count('1')
+    expect =end_state.sum()
     if not expect == target_lives:
         raise Exception('Game {} failed target_live {} vs expected {}'.format(
             game_index, target_lives, expect))
         
-    expect = bin(cnn_state).count('1')
+    expect = cnn_state.sum()
     if not cnn_lives == expect:
         raise Exception('Game {} failed cnn_lives {} vs expected {}'.format(
             game_index, cnn_lives, expect))
         
-    expect = bin(conway.run(cnn_state, delta)^end_state).count('1')
+    expect = abs(conway(cnn_state, delta) - end_state).sum()
     if not cnn_errors == expect:
         raise Exception('Game {} failed cnn_errors {} vs expected {}'.format(
             game_index, cnn_errors, expect))
         
-    expect = bin(ga_state).count('1')
+    expect = ga_state.sum()
     if not ga_lives == expect:
         raise Exception('Game {} failed ga_lives {} vs expected {}'.format(
             game_index, ga_lives, expect))
         
-    expect = bin(conway.run(ga_state, delta)^end_state).count('1')
+    expect = abs(conway(ga_state, delta) - end_state).sum()
     if not ga_errors == expect:
         raise Exception('Game {} failed ga_errors {} vs expected {}'.format(
             game_index, ga_errors, expect))
@@ -46,7 +47,7 @@ def sample_verify():
 
 output_dir = '../../gamelife_data/output/'
 data = pd.read_csv(output_dir + 'results.csv', index_col=0)
-sample_verify()
+# sample_verify()
 
 game_size = 25 * 25
 # statistics by errors

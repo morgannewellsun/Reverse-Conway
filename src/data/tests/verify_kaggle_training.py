@@ -37,7 +37,7 @@ def verify_by_arr_rep():
 
 
 
-max_csv_rows = 100000
+max_csv_rows = 10
 kaggle_root = '../../gamelife_data/kaggle/'
 data = pd.read_csv(kaggle_root + 'train.csv', index_col=0, dtype='int', nrows=max_csv_rows)
 
