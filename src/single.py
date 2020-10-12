@@ -1,3 +1,23 @@
+# Conway inverse solution using single processor.
+# VARIOUS SETTINGS
+max_csv_rows = 100          # maximum number of rows loaded
+delta_1_only = False        # Load only the model for delta = 1
+cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
+# cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
+rand_seed = 0             # Used in genetic algorithm ReverseGa
+ga_pop_size = 20
+ga_max_iters = 20
+ga_cross = 1              # GA cross ratio
+ga_mutate = 1             # GA mutation population ratio
+ga_mut_div = 100          # GA cell mutation probability is 1/ga_mut_div
+status_freq = 100          # Report frequency in terms of number of games
+track_details = True
+kaggle_test_file = '../../gamelife_data/kaggle/test.csv'
+output_dir = '../../gamelife_data/output/'
+# If False, bypass CNN results to save load time. Use raondom initial states.
+use_cnn = True
+
+
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -9,23 +29,6 @@ from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
 from components.reversega import ReverseGa
 from data.revconwayreport import post_run_report
 
-
-max_csv_rows = 100           # maximum number of rows loaded
-delta_1_only = True        # Load only the model for delta = 1
-cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
-# cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
-rand_seed = 0             # Used in genetic algorithm ReverseGa
-ga_pop_size = 20
-ga_max_iters = 20
-ga_cross = 1
-ga_mutate = 1
-ga_mut_div = 100
-status_freq = 100          # Report frequency in terms of number of games
-track_details = True
-kaggle_test_file = '../../gamelife_data/kaggle/test.csv'
-output_dir = '../../gamelife_data/output/'
-# If False, bypass CNN results to save load time. Use raondom initial states.
-use_cnn = True
 
 def mylog(msg):
     # tensorflow customized the logggin. Don't want to fight it.

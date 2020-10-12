@@ -1,0 +1,12 @@
+,key,value
+0,cnn_path,../../Reverse-Conway/pretrained_models/initial_baseline_delta_
+1,max_csv_rows,1000
+2,rand_seed,0
+3,ga_pop_size,20
+4,ga_max_iters,20
+5,ga_cross,1
+6,ga_mutate,1
+7,ga_mut_div,100
+8,delta_1_only,False
+9,start_time,2020-10-12 10:17:55.651032
+10,end_time,2020-10-12 10:20:51.089634
