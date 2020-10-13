@@ -1,7 +1,7 @@
 # Conway inverse solution using single processor.
 # VARIOUS SETTINGS
-max_csv_rows = 100          # maximum number of rows loaded
-delta_1_only = False        # Load only the model for delta = 1
+max_csv_rows = 1000          # maximum number of rows loaded
+delta_1_only = True        # Load only the model for delta = 1
 cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
 # cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
 rand_seed = 0             # Used in genetic algorithm ReverseGa

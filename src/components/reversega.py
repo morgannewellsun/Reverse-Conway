@@ -25,13 +25,13 @@ class ReverseGa:
 
     def revert(self, delta, stop_state, guess = None):
         """ Arguments:
-            stop_state is the 4D array representation of the stop state,
+            stop_state is the 4D array (bool) representation of the stop state,
             of shape (1, game_board_width, game_board_height, 1)
             guess is a 4D array of shape
             (batch_size, game_board_width, game_board_height, 1).
             Return:
             A tuple of two:
-            initial state represented by a 4D array
+            initial state represented by a 4D array of bool
             and the number of errors, which is the count of
             number of end cells from the initial state different from stop_state.
         """
@@ -58,7 +58,7 @@ class ReverseGa:
         # of size (1, 25, 25, 1)
         
         end_state = target.reshape(
-            (1, self.conway.nrows, self.conway.ncols, 1))
+            (1, self.conway.nrows, self.conway.ncols, 1)).astype(bool)
         if cnn_result is None:
             initial = None
         else:
@@ -67,7 +67,7 @@ class ReverseGa:
             selected = list(range(life50 - half_pop, life50 + half_pop))
             sorted_probs = sorted(cnn_result.flatten())
             # This is a list of 1D 0/1 arrays representing the boards from CNN.
-            initial = [(cnn_result[0] > sorted_probs[j]).tolist() for j in selected]
+            initial = np.array([(cnn_result[0] > sorted_probs[j]) for j in selected])
 
         ga_result = self.revert(delta, end_state, guess = initial)
         if not self._tracking:
@@ -81,14 +81,14 @@ class ReverseGa:
             cnn_errors = 0
         else:
             cnn_guess = initial[half_pop]
-            cnn_guess = np.array([cnn_guess]).astype(int)
+            cnn_guess = np.array([cnn_guess])
             cnn_lives = cnn_guess.sum()
-            cnn_errors = abs(self.conway(cnn_guess, delta) - end_state).sum()
+            cnn_errors = np.logical_xor(self.conway(cnn_guess, delta), end_state).sum()
         return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
                 ga_lives, self._best_error, 
-                ''.join(map(str, end_state.flatten().tolist())),
-                ''.join(map(str, cnn_guess.flatten().tolist())),
-                ''.join(map(str, ga_result.flatten().tolist())) ]
+                ''.join(map(str, end_state.flatten().astype(int).tolist())),
+                ''.join(map(str, cnn_guess.flatten().astype(int).tolist())),
+                ''.join(map(str, ga_result.flatten().astype(int).tolist())) ]
 
 
     def _reset(self, guess):
@@ -101,12 +101,12 @@ class ReverseGa:
             self._report = list()
 
         # Generation 0 start from building self._mutants + _babies.
-        empty_state = np.array([0] * self._chromo_len).reshape(self._target.shape)
+        empty_state = np.array([False] * self._chromo_len).reshape(self._target.shape)
         self._mutants = np.concatenate((empty_state, self._target))
         if guess is None:
             # Not enough intial guesses are supplied. Use random states.
             sz = (self.pop_size, self.conway.nrows, self.conway.ncols, 1)
-            self._babies = np.random.randint(2, size=sz)
+            self._babies = np.random.randint(2, size=sz).astype(bool)
         else:
             self._babies = guess
 
@@ -116,11 +116,11 @@ class ReverseGa:
         chromos = self._curr_pop[c]
         # The resulting board has 1 / self._mutation_div fraction being live cells.
         muter = (np.random.randint(self._mutation_div, size=chromos.shape)
-                 / (self._mutation_div - 1)).astype(int)
+                 / (self._mutation_div - 1)).astype(int).astype(bool)
         # Outside this area, we don't mutate any cells.
-        target_area = sum([np.roll(self._diffs[c], shift, (-3, -2)) for shift in self._offsets])
-        muter *= target_area
-        self._mutants = (chromos + muter) % 2
+        target_area = np.any([np.roll(self._diffs[c], shift, (-3, -2)) for shift in self._offsets], axis=0)
+        muter &= target_area
+        self._mutants = chromos ^ muter
         # In case muter[j] are all zeros, no mutation happens. Remove it.
         self._mutants = self._mutants[self._mutants.sum(axis=(1,2,3))>0]
 
@@ -130,11 +130,11 @@ class ReverseGa:
         dads = self._curr_pop[idx[:self._ncrossover]]
         moms = self._curr_pop[idx[self._ncrossover:]]
         swapper = np.random.randint(low=0, high=2, size=(
-            self._ncrossover, self.conway.nrows, self.conway.ncols, 1))
-        complim = 1 - swapper
+            self._ncrossover, self.conway.nrows, self.conway.ncols, 1)).astype(bool)
+        complim = ~swapper
         self._babies = np.concatenate((
-            dads * swapper + moms * complim,
-            dads * complim + moms * swapper ))
+            (dads & swapper) | (moms & complim),
+            (dads & complim) | (moms & swapper) ))
         self._babies = self._babies[self._babies.sum(axis=(1,2,3))>0]
 
 
@@ -147,8 +147,7 @@ class ReverseGa:
         # self._diffs is 4D np.array of differences from target
         # self._errors is 1D array of error count.
 
-        newdiff = abs(self.conway(newpop)
-                      - np.repeat(self._target, len(newpop), axis=0))
+        newdiff = self.conway(newpop) ^ np.repeat(self._target, len(newpop), axis=0)
         newerr = np.array(newdiff.sum(axis=(1,2,3)))
         if self._curr_pop is None:
             self._curr_pop = newpop

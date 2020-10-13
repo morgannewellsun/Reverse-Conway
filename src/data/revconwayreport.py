@@ -14,34 +14,36 @@ def sample_verify(data):
     (game_index, delta, target_lives, cnn_lives, cnn_errors,
      ga_lives, ga_errors) = map(int, row[:7])
     (target, cnn, ga) = row[7:]
+
     end_state = np.array(list(target)).astype(int).reshape((1,25,25,1))
-    cnn_state = np.array(list(cnn)).astype(int).reshape((1,25,25,1))
-    ga_state = np.array(list(ga)).astype(int).reshape((1,25,25,1))
-    
     expect =end_state.sum()
     if not expect == target_lives:
         raise Exception('Game {} failed target_live {} vs expected {}'.format(
             game_index, target_lives, expect))
         
-    expect = cnn_state.sum()
-    if not cnn_lives == expect:
-        raise Exception('Game {} failed cnn_lives {} vs expected {}'.format(
-            game_index, cnn_lives, expect))
-        
-    expect = abs(conway(cnn_state, delta) - end_state).sum()
-    if not cnn_errors == expect:
-        raise Exception('Game {} failed cnn_errors {} vs expected {}'.format(
-            game_index, cnn_errors, expect))
-        
+    ga_state = np.array(list(ga)).astype(int).reshape((1,25,25,1))
     expect = ga_state.sum()
     if not ga_lives == expect:
         raise Exception('Game {} failed ga_lives {} vs expected {}'.format(
             game_index, ga_lives, expect))
-        
     expect = abs(conway(ga_state, delta) - end_state).sum()
     if not ga_errors == expect:
         raise Exception('Game {} failed ga_errors {} vs expected {}'.format(
             game_index, ga_errors, expect))
+
+    if not cnn == 0:
+        cnn_state = np.array(list(cnn)).astype(int).reshape((1,25,25,1))
+        expect = cnn_state.sum()
+        if not cnn_lives == expect:
+            raise Exception('Game {} failed cnn_lives {} vs expected {}'.format(
+                game_index, cnn_lives, expect))
+            
+        expect = abs(conway(cnn_state, delta) - end_state).sum()
+        if not cnn_errors == expect:
+            raise Exception('Game {} failed cnn_errors {} vs expected {}'.format(
+                game_index, cnn_errors, expect))
+
+    print('Verified row {} on game {}.'.format(j, game_index))
 
 
 
