@@ -77,8 +77,8 @@ class ReverseGa:
         ga_lives = ga_result.sum()
         if cnn_result is None:
             cnn_guess = np.array([0])
-            cnn_lives = 0
-            cnn_errors = 0
+            cnn_lives = -1
+            cnn_errors = -1
         else:
             cnn_guess = initial[half_pop]
             cnn_guess = np.array([cnn_guess])
@@ -147,7 +147,7 @@ class ReverseGa:
         # self._diffs is 4D np.array of differences from target
         # self._errors is 1D array of error count.
 
-        newdiff = self.conway(newpop) ^ np.repeat(self._target, len(newpop), axis=0)
+        newdiff = self.conway(newpop, self._delta) ^ np.repeat(self._target, len(newpop), axis=0)
         newerr = np.array(newdiff.sum(axis=(1,2,3)))
         if self._curr_pop is None:
             self._curr_pop = newpop

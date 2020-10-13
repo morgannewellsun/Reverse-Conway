@@ -43,7 +43,7 @@ def sample_verify(data):
             raise Exception('Game {} failed cnn_errors {} vs expected {}'.format(
                 game_index, cnn_errors, expect))
 
-    print('Verified row {} on game {}.'.format(j, game_index))
+    print('Verified row {} delta {} on game {}.'.format(j, delta, game_index))
 
 
 

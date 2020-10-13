@@ -31,12 +31,14 @@ class Visualizer:
         self._norm_comparison = matplotlib.colors.BoundaryNorm(
             [-0.5, 0.5, 1.5, 2.5, 3.5], self._cmap_comparison.N, clip=True)
 
+
     def draw_board(self, board: np.ndarray, title: str):
         fig, ax = plt.subplots(figsize=self._figure_size)
         board = board.astype(float)
         board = 3.0 * np.greater_equal(board, self._binary_threshold)
         ax.imshow(board, interpolation="nearest", cmap=self._cmap_binary, norm=self._norm_binary)
         self._finalize_and_output_current_fig(title)
+
 
     def draw_board_comparison(self, board_true: np.ndarray, board_pred: np.ndarray, title: str):
         fig, ax = plt.subplots(figsize=self._figure_size)
@@ -48,6 +50,7 @@ class Visualizer:
         ax.imshow(board_combined, interpolation="nearest", cmap=self._cmap_comparison, norm=self._norm_comparison)
         self._finalize_and_output_current_fig(title)
 
+
     def _finalize_and_output_current_fig(self, title: str):
         plt.title(title)
         plt.tight_layout()
@@ -57,6 +60,21 @@ class Visualizer:
         if self._show_figures:
             plt.show()
         plt.close()
+
+    
+    # A convenicne method taking board of, e.g., (1, 25, 25, 1) array.
+    def draw_board_arr(self, board, title):
+        mid2d = (board.shape[1], board.shape[2])
+        brd = board.reshape(mid2d)
+        self.draw_board(brd, title)
+
+
+    # A convenicne method taking board of, e.g., (1, 25, 25, 1) array.
+    def draw_board_comparison_arr(self, board_true, board_pred, title):
+        mid2d = (board_true.shape[1], board_true.shape[2])
+        self.draw_board_comparison(
+            board_true.reshape(mid2d), board_pred.reshape(mid2d), title)
+
 
 
 if __name__ == "__main__":

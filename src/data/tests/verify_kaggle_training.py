@@ -27,17 +27,15 @@ def verify_by_arr_rep():
         k_arr = row[(board_size+1):]
         s_ten = np.array(s_arr).reshape((1, 25, 25, 1))
         k_ten = np.array(k_arr)
-        m_ten = s_ten
-        for _ in range(delta):
-            m_ten = binary_prop(m_ten)
+        m_ten = binary_prop(s_ten, delta)
         model_res = m_ten.flatten().astype(int)
         if sum(abs(k_ten - model_res)) > 0:
             raise Exception('Failed to match game {}:'.format(idx))
-    timing('Array representation')
+    timing('All loaded training data are verified.')
 
 
 
-max_csv_rows = 10
+max_csv_rows = 100000
 kaggle_root = '../../gamelife_data/kaggle/'
 data = pd.read_csv(kaggle_root + 'train.csv', index_col=0, dtype='int', nrows=max_csv_rows)
 
