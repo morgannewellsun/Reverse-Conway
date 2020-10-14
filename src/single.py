@@ -11,7 +11,7 @@ ga_cross = 1              # GA cross ratio
 ga_mutate = 1             # GA mutation population ratio
 ga_mut_div = 100          # GA cell mutation probability is 1/ga_mut_div
 status_freq = 100          # Report frequency in terms of number of games
-track_details = True
+track_details = False
 kaggle_test_file = '../../gamelife_data/kaggle/test.csv'
 output_dir = '../../gamelife_data/output/'
 # If False, bypass CNN results to save load time. Use raondom initial states.
@@ -19,7 +19,7 @@ use_cnn = True
 # The following settings restricts to only a selected subset of data to test.
 deltaset = {1,2,3,4,5}        # Load only the model for specified deltas.
 game_idx_min = 0         # Kaggle test game indices from 50000 to 99999.
-game_idx_max = 50100
+game_idx_max = 100000
 
 # END USER SETTINGS
 
