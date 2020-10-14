@@ -19,7 +19,7 @@ use_cnn = True
 # The following settings restricts to only a selected subset of data to test.
 deltaset = {1,2,3,4,5}        # Load only the model for specified deltas.
 game_idx_min = 0         # Kaggle test game indices from 50000 to 99999.
-game_idx_max = 51000
+game_idx_max = 50100
 
 # END USER SETTINGS
 
@@ -56,14 +56,7 @@ result_header = [
     'GA Lives', 'GA Errors', 'Target State', 'CNN Start', 'GA Start']
 
 def save_results(all_results):
-    if len(all_results) == 0:
-        print('No results were generated.')
-        return
-    if len(all_results[0]) > 2:
-        data = pd.DataFrame(all_results, columns = result_header)
-    else:
-        data = pd.DataFrame(all_results, coloums = ['Game Index', 'Start'])
-    data.to_csv(output_dir + 'results.csv')
+    # Record basic settings for later review with results.
     pd.DataFrame([
         ['cnn_path', cnn_path],
         ['deltaset', deltaset],
@@ -80,7 +73,12 @@ def save_results(all_results):
         ['end_time', end_time]
         ], columns=('key', 'value')
         ).to_csv(output_dir + 'config.csv')
-    # Generate more statistical reports based on the above files.
+    if len(all_results) == 0:
+        print('No results were generated.')
+        return
+    data = pd.DataFrame(all_results, columns = result_header)
+    data.to_csv(output_dir + 'results.csv')
+    # Generate more statistical reports based on the above file.
     post_run_report(output_dir)
 
 
