@@ -67,7 +67,12 @@ class ReverseGa:
         else:
             life50 = (cnn_result < 0.5).sum()
             half_pop = int(self.pop_size / 2)
-            selected = list(range(life50 - half_pop, life50 + half_pop))
+            if life50 - half_pop < 0:
+                selected = range(self.pop_size)
+            elif life50 + half_pop < self._chromo_len:
+                selected = range(life50 - half_pop, life50 + half_pop)
+            else:
+                selected = range(-self.pop_size, 0)
             sorted_probs = sorted(cnn_result.flatten())
             # This is a list of 1D 0/1 arrays representing the boards from CNN.
             initial = np.array([(cnn_result[0] > sorted_probs[j]) for j in selected])
