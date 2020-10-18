@@ -10,7 +10,7 @@ class ReverseGa:
     def __init__(self, conway:BinaryConwayForwardPropFn,
                  pop_size = 10, max_iters = 10,
                  crossover_rate = 1, mutation_rate = 0.5,
-                 mut_div = 10, tracking = True):
+                 mut_div = 10, max_stales = 3, tracking = True):
         # Arg mut_div: probability of mutation is 1/mut_div
         self.conway = conway
         self._chromo_len = conway.nrows * conway.ncols
@@ -20,10 +20,11 @@ class ReverseGa:
         self._mutation_div = mut_div
         self._ncrossover = int(pop_size * crossover_rate / 2)
         self._tracking = tracking
+        self._max_stales = max_stales     # max iterations without improvements.
         self._offsets = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
 
 
-    def revert(self, delta, stop_state, guess = None):
+    def revert(self, game_idx, delta, stop_state, guess):
         """ Arguments:
             stop_state is the 4D array (bool) representation of the stop state,
             of shape (1, game_board_width, game_board_height, 1)
@@ -49,45 +50,14 @@ class ReverseGa:
             self._crossover()
             self._select()
             self._track()
-        return self._curr_pop[0]
+            if self._gen_idx - self._best_gen == self._max_stales:
+                break
 
-
-    def refine_cnn(self, game_idx, delta, target, cnn_result):
-        # Arg target is the 1D array of 0/1 integers representation of the end state.
-        # Arg cnn_result is a 4D numpy array of probabilities as result of CNN,
-        # of size (1, 25, 25, 1)
-        
-        end_state = target.reshape(
-            (1, self.conway.nrows, self.conway.ncols, 1)).astype(bool)
-        if cnn_result is None:
-            initial = None
-            cnn_guess = np.array([0])
-            cnn_lives = -1
-            cnn_errors = -1
-        else:
-            life50 = (cnn_result < 0.5).sum()
-            half_pop = int(self.pop_size / 2)
-            if life50 - half_pop < 0:
-                selected = range(self.pop_size)
-            elif life50 + half_pop < self._chromo_len:
-                selected = range(life50 - half_pop, life50 + half_pop)
-            else:
-                selected = range(-self.pop_size, 0)
-            sorted_probs = sorted(cnn_result.flatten())
-            # This is a list of 1D 0/1 arrays representing the boards from CNN.
-            initial = np.array([(cnn_result[0] > sorted_probs[j]) for j in selected])
-            cnn_guess = initial[half_pop]
-            cnn_guess = np.array([cnn_guess])
-            cnn_lives = cnn_guess.sum()
-            cnn_errors = np.logical_xor(self.conway(cnn_guess, delta), end_state).sum()
-
-        ga_result = self.revert(delta, end_state, guess = initial)
-        target_lives = target.sum()
+        ga_result = self._curr_pop[0]
+        target_lives = stop_state.sum()
         ga_lives = ga_result.sum()
-        return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
-                ga_lives, self._best_error, 
-                ''.join(map(str, end_state.flatten().astype(int).tolist())),
-                ''.join(map(str, cnn_guess.flatten().astype(int).tolist())),
+        return [game_idx, delta, target_lives, ga_lives, self._best_error, 
+                ''.join(map(str, stop_state.flatten().astype(int).tolist())),
                 ''.join(map(str, ga_result.flatten().astype(int).tolist())) ]
 
 
@@ -103,12 +73,7 @@ class ReverseGa:
         # Generation 0 start from building self._mutants + _babies.
         empty_state = np.array([False] * self._chromo_len).reshape(self._target.shape)
         self._mutants = np.concatenate((empty_state, self._target))
-        if guess is None:
-            # Not enough intial guesses are supplied. Use random states.
-            sz = (self.pop_size, self.conway.nrows, self.conway.ncols, 1)
-            self._babies = np.random.randint(2, size=sz).astype(bool)
-        else:
-            self._babies = guess
+        self._babies = guess
 
 
     def _mutate(self):
@@ -164,11 +129,10 @@ class ReverseGa:
         """
         # The order of adding mutants and babies is important.
         # Later the statistics are computed assuming this addition order.
-        self._add_newpop(self._mutants)
-        self._add_newpop(self._babies)
+        self._add_newpop(np.concatenate((self._mutants, self._babies)))
         # Make sure the best and the worst chromos
         # after the selection are correctly placed.
-        self._selects = np.argpartition(self._errors, (1, self.pop_size))
+        self._selects = np.argpartition(self._errors, 0)
         self._selects = self._selects[0:self.pop_size]
         self._curr_pop = self._curr_pop[self._selects]
         self._diffs = self._diffs[self._selects]
@@ -196,7 +160,7 @@ class ReverseGa:
             sum(self._selects < n0),  # survivals
             sum((self._selects >= n0) & (self._selects < n1)),  # selected mutants
             sum(self._selects >= n1),   # selected babies (from crossovers)
-            self._best_error, self._errors[-1], self._best_gen, src
+            self._best_error, self._best_gen, src
             ])
 
 
@@ -204,4 +168,4 @@ class ReverseGa:
         return pd.DataFrame(
             self._report, columns=(
                 'mut', 'bab', 'p_in', 'm_in', 'b_in',
-                'min_e', 'max_e', 'best', 'src'))
+                'min_e', 'best', 'src'))
