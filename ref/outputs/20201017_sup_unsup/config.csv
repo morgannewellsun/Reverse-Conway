@@ -1,0 +1,15 @@
+,key,value
+0,cnn_path,"['../../Reverse-Conway/pretrained_models/initial_baseline_delta_', '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_']"
+1,deltaset,"{1, 2, 3, 4, 5}"
+2,ga_pop_size,24
+3,ga_max_iters,24
+4,ga_cross,1
+5,ga_mutate,1
+6,ga_mut_div,100
+7,game_idx_min,0
+8,game_idx_max,51000
+9,rand_seed,0
+10,stepwise,False
+11,use_cnn,True
+12,start_time,2020-10-17 17:40:25.758980
+13,end_time,2020-10-17 17:44:11.234001
