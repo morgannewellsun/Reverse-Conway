@@ -5,13 +5,14 @@
 cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
 # cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
 rand_seed = 0             # Used in genetic algorithm ReverseGa
-ga_pop_size = 20
-ga_max_iters = 20
+ga_pop_size = 100
+ga_max_iters = 100
 ga_cross = 1              # GA cross ratio
 ga_mutate = 1             # GA mutation population ratio
 ga_mut_div = 100          # GA cell mutation probability is 1/ga_mut_div
+ga_max_stales = 2          # GA maximum iterations without improvements
 status_freq = 100          # Report frequency in terms of number of games
-track_details = False
+track_details = True
 kaggle_test_file = '../../gamelife_data/kaggle/test.csv'
 output_dir = '../../gamelife_data/output/'
 # If False, bypass CNN results to save load time. Use raondom initial states.
@@ -19,7 +20,7 @@ use_cnn = True
 # The following settings restricts to only a selected subset of data to test.
 deltaset = {1,2,3,4,5}        # Load only the model for specified deltas.
 game_idx_min = 0         # Kaggle test game indices from 50000 to 99999.
-game_idx_max = 100000
+game_idx_max = 51000
 
 # END USER SETTINGS
 
@@ -62,6 +63,7 @@ def save_results(all_results):
         ['deltaset', deltaset],
         ['ga_pop_size', ga_pop_size],
         ['ga_max_iters', ga_max_iters],
+        ['ga_max_stales', ga_max_stales],
         ['ga_cross', ga_cross],
         ['ga_mutate', ga_mutate],
         ['ga_mut_div', ga_mut_div],
@@ -107,7 +109,8 @@ np.random.seed(rand_seed)
 conway = BinaryConwayForwardPropFn(numpy_mode=True, nrows=25, ncols=25)
 ga = ReverseGa(conway, pop_size=ga_pop_size, max_iters=ga_max_iters,
                crossover_rate=ga_cross, mutation_rate=ga_mutate,
-               mut_div = ga_mut_div, tracking=track_details)
+               mut_div = ga_mut_div, max_stales=ga_max_stales,
+               tracking=track_details)
 
 all_results = []
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)

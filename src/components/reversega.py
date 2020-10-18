@@ -10,7 +10,7 @@ class ReverseGa:
     def __init__(self, conway:BinaryConwayForwardPropFn,
                  pop_size = 10, max_iters = 10,
                  crossover_rate = 1, mutation_rate = 0.5,
-                 mut_div = 10, tracking = True):
+                 mut_div = 10, max_stales = 2, tracking = True):
         # Arg mut_div: probability of mutation is 1/mut_div
         self.conway = conway
         self._chromo_len = conway.nrows * conway.ncols
@@ -19,6 +19,7 @@ class ReverseGa:
         self._nmutations = int(pop_size * mutation_rate)
         self._mutation_div = mut_div
         self._ncrossover = int(pop_size * crossover_rate / 2)
+        self._max_stales = max_stales     # max iterations without improvements.
         self._tracking = tracking
         self._offsets = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
 
@@ -49,6 +50,9 @@ class ReverseGa:
             self._crossover()
             self._select()
             self._track()
+            if (self._gen_idx - self._best_gen > self._max_stales
+                and self._gen_idx - self._worst_gen > self._max_stales):
+                break
         return self._curr_pop[0]
 
 
@@ -96,7 +100,9 @@ class ReverseGa:
         self._curr_pop = None      # 4D np.array
         self._gen_idx = 0                # Current generation index.
         self._best_gen = 0               # The generate giving the best chromo
+        self._worst_gen = 0            # The generation whose worst is the best.
         self._best_error = self._chromo_len     # The smallest error so far
+        self._worst_error = self._chromo_len
         if self._tracking:
             self._report = list()
 
@@ -164,11 +170,10 @@ class ReverseGa:
         """
         # The order of adding mutants and babies is important.
         # Later the statistics are computed assuming this addition order.
-        self._add_newpop(self._mutants)
-        self._add_newpop(self._babies)
+        self._add_newpop(np.concatenate((self._mutants, self._babies)))
         # Make sure the best and the worst chromos
         # after the selection are correctly placed.
-        self._selects = np.argpartition(self._errors, (1, self.pop_size))
+        self._selects = np.argpartition(self._errors, (0, self.pop_size-1))
         self._selects = self._selects[0:self.pop_size]
         self._curr_pop = self._curr_pop[self._selects]
         self._diffs = self._diffs[self._selects]
@@ -177,6 +182,11 @@ class ReverseGa:
         if best < self._best_error:
             self._best_error = best
             self._best_gen = self._gen_idx
+        worst = self._errors[-1]
+        if worst < self._worst_error:
+            self._worst_error = worst
+            self._worst_gen = self._gen_idx
+        
 
 
     def _track(self):
@@ -196,7 +206,8 @@ class ReverseGa:
             sum(self._selects < n0),  # survivals
             sum((self._selects >= n0) & (self._selects < n1)),  # selected mutants
             sum(self._selects >= n1),   # selected babies (from crossovers)
-            self._best_error, self._errors[-1], self._best_gen, src
+            self._best_error, self._worst_error,
+            self._best_gen, self._worst_gen, src
             ])
 
 
@@ -204,4 +215,4 @@ class ReverseGa:
         return pd.DataFrame(
             self._report, columns=(
                 'mut', 'bab', 'p_in', 'm_in', 'b_in',
-                'min_e', 'max_e', 'best', 'src'))
+                'min_e', 'max_e', 'best', 'worst', 'src'))
