@@ -1,0 +1,6 @@
+Tried hash the current population at each iteration.
+Removed duplicated chromosomes.
+But the time spent on hashing is not worth.
+In the settings in this example, usually it takes less than 10 sec for 100 loops,
+now seconds.
+And the final result does not improve much.
