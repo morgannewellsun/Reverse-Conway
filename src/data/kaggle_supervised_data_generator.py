@@ -87,3 +87,6 @@ class KaggleSupervisedDataGenerator(tf.keras.utils.Sequence):
             return (self._batches_stop[index] - self._input_mean) / self._input_var, self._batches_start[index]
         else:
             return self._batches_stop[index], self._batches_start[index]
+
+    def get_all_batches(self):
+        return self._batches_start, self._batches_stop

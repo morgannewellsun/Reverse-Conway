@@ -17,6 +17,7 @@ class VisualizationCallback(tf.keras.callbacks.Callback):
             delta_steps: int,
             output_directory: str,
             epochs_per_visualization: int,
+            visualize_first_n: int = 1,
             binary_threshold: float = 0.5,
     ):
         super(VisualizationCallback, self).__init__()
@@ -24,6 +25,7 @@ class VisualizationCallback(tf.keras.callbacks.Callback):
         self._delta_steps = delta_steps
         self._output_directory = output_directory
         self._epochs_per_visualization = epochs_per_visualization
+        self._visualize_first_n = visualize_first_n
         self._compare_end = delta_steps != 0
         self._binary_threshold = binary_threshold
         self._epochs_since_last_visualization = np.inf
@@ -34,16 +36,17 @@ class VisualizationCallback(tf.keras.callbacks.Callback):
         self._epochs_since_last_visualization += 1
         if self._epochs_since_last_visualization >= self._epochs_per_visualization:
             self._epochs_since_last_visualization = 0
-            end_board_true = self._test_batches[0][0][0:1]
-            start_board_pred = np.greater_equal(self.model.predict(end_board_true), self._binary_threshold)
-            if self._compare_end:
-                end_board_pred = start_board_pred
-                for _ in range(self._delta_steps):
-                    end_board_pred = self._binary_forward_prop(end_board_pred)
-                self._visualizer.draw_board_comparison(
-                    end_board_true.squeeze(), end_board_pred.squeeze(), title=f"epoch_{epoch}_end_board_0")
-            else:
-                start_board_true = self._test_batches[0][1][0:1]
-                self._visualizer.draw_board_comparison(
-                    start_board_true.squeeze(), start_board_pred.squeeze(), title=f"epoch_{epoch}_start_board_0")
+            for i in range(self._visualize_first_n):
+                end_board_true = self._test_batches[0][0][i:i+1]
+                start_board_pred = np.greater_equal(self.model.predict(end_board_true), self._binary_threshold)
+                if self._compare_end:
+                    end_board_pred = start_board_pred
+                    for _ in range(self._delta_steps):
+                        end_board_pred = self._binary_forward_prop(end_board_pred)
+                    self._visualizer.draw_board_comparison(
+                        end_board_true.squeeze(), end_board_pred.squeeze(), title=f"epoch_{epoch}_board_{i}_end")
+                else:
+                    start_board_true = self._test_batches[0][1][i:i+1]
+                    self._visualizer.draw_board_comparison(
+                        start_board_true.squeeze(), start_board_pred.squeeze(), title=f"epoch_{epoch}_board_{i}_start")
 
