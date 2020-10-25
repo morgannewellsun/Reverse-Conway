@@ -11,6 +11,10 @@ def sample_verify(data):
     # Use current time digits after the decimal point.
     j = int(str(time.time()%1)[2:])%nrows
     row = data.iloc[j, :]
+    if len(row) < 10:
+        print('No state data to verify')
+        return
+        
     (game_index, delta, target_lives, cnn_lives, cnn_errors,
      ga_lives, ga_errors) = map(int, row[:7])
     (target, cnn, ga) = row[7:]

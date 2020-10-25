@@ -10,7 +10,8 @@ class ReverseGa:
     def __init__(self, conway:BinaryConwayForwardPropFn,
                  pop_size = 10, max_iters = 10,
                  crossover_rate = 1, mutation_rate = 0.5,
-                 mut_div = 10, max_stales = 2, tracking = True):
+                 mut_div = 10, max_stales = 2, tracking = True,
+                 save_states = True):
         # Arg mut_div: probability of mutation is 1/mut_div
         self.conway = conway
         self._chromo_len = conway.nrows * conway.ncols
@@ -21,14 +22,15 @@ class ReverseGa:
         self._ncrossover = int(pop_size * crossover_rate / 2)
         self._max_stales = max_stales     # max iterations without improvements.
         self._tracking = tracking
+        self._save_states = save_states
         self._offsets = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
 
 
-    def revert(self, delta, stop_state, guess = None):
+    def revert(self, game_idx, delta, stop_state, guess = None):
         """ Arguments:
             stop_state is the 4D array (bool) representation of the stop state,
             of shape (1, game_board_width, game_board_height, 1)
-            guess is a 4D array of shape
+            guess is either None or a 4D array of shape
             (batch_size, game_board_width, game_board_height, 1).
             Return:
             A tuple of two:
@@ -41,6 +43,9 @@ class ReverseGa:
         self._reset(guess)
         self._select()
         self._track()      # Generation 0 is done.
+        cnn_guess = self._curr_pop[0]
+        cnn_lives = cnn_guess.sum()
+        cnn_errors = self._best_error
         
         while self._gen_idx < self._max_iters:
             self._gen_idx += 1
@@ -53,51 +58,24 @@ class ReverseGa:
             if (self._gen_idx - self._best_gen > self._max_stales
                 and self._gen_idx - self._worst_gen > self._max_stales):
                 break
-        return self._curr_pop[0]
 
-
-    def refine_cnn(self, game_idx, delta, target, cnn_result):
-        # Arg target is the 1D array of 0/1 integers representation of the end state.
-        # Arg cnn_result is a 4D numpy array of probabilities as result of CNN,
-        # of size (1, 25, 25, 1)
-        
-        end_state = target.reshape(
-            (1, self.conway.nrows, self.conway.ncols, 1)).astype(bool)
-        if cnn_result is None:
-            initial = None
-            cnn_guess = np.array([0])
-            cnn_lives = -1
-            cnn_errors = -1
-        else:
-            life50 = (cnn_result < 0.5).sum()
-            half_pop = int(self.pop_size / 2)
-            if life50 - half_pop < 0:
-                selected = range(self.pop_size)
-            elif life50 + half_pop < self._chromo_len:
-                selected = range(life50 - half_pop, life50 + half_pop)
-            else:
-                selected = range(-self.pop_size, 0)
-            sorted_probs = sorted(cnn_result.flatten())
-            # This is a list of 1D 0/1 arrays representing the boards from CNN.
-            initial = np.array([(cnn_result[0] > sorted_probs[j]) for j in selected])
-            cnn_guess = initial[half_pop]
-            cnn_guess = np.array([cnn_guess])
-            cnn_lives = cnn_guess.sum()
-            cnn_errors = np.logical_xor(self.conway(cnn_guess, delta), end_state).sum()
-
-        ga_result = self.revert(delta, end_state, guess = initial)
-        target_lives = target.sum()
+        ga_result = self._curr_pop[0]
+        target_lives = stop_state.sum()
         ga_lives = ga_result.sum()
-        return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
-                ga_lives, self._best_error, 
-                ''.join(map(str, end_state.flatten().astype(int).tolist())),
-                ''.join(map(str, cnn_guess.flatten().astype(int).tolist())),
-                ''.join(map(str, ga_result.flatten().astype(int).tolist())) ]
-
+        if self._save_states:
+            return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
+                    ga_lives, self._best_error, 
+                    ''.join(map(str, stop_state.flatten().astype(int).tolist())),
+                    ''.join(map(str, cnn_guess.flatten().astype(int).tolist())),
+                    ''.join(map(str, ga_result.flatten().astype(int).tolist())) ]
+        else:
+            return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
+                    ga_lives, self._best_error]
+            
 
     def _reset(self, guess):
         # set up generation 0.
-        self._curr_pop = None      # 4D np.array
+        self._curr_pop = None      # 4D np.array. _curr_pop[0] is the best, _curr_pop[-1] is the worst.
         self._gen_idx = 0                # Current generation index.
         self._best_gen = 0               # The generate giving the best chromo
         self._worst_gen = 0            # The generation whose worst is the best.
@@ -118,7 +96,8 @@ class ReverseGa:
 
 
     def _mutate(self):
-        c = np.random.choice(len(self._curr_pop), replace=False, size=self._nmutations)
+        c = np.random.choice(len(self._curr_pop), replace=False,
+                             size=min(self._nmutations, len(self._curr_pop)))
         chromos = self._curr_pop[c]
         # The resulting board has 1 / self._mutation_div fraction being live cells.
         muter = (np.random.randint(self._mutation_div, size=chromos.shape)
@@ -163,6 +142,13 @@ class ReverseGa:
             self._curr_pop = np.concatenate((self._curr_pop, newpop))
             self._diffs = np.concatenate((self._diffs, newdiff))
             self._errors = np.concatenate((self._errors, newerr))
+        pre_cnt = len(self._curr_pop)
+        if self._gen_idx % 10 == 9:
+            # Every 10 rounds, we purge those duplicated states. This is expensive.
+            self._curr_pop, idx = np.unique(self._curr_pop, axis=0, return_index=True)
+            self._diffs = self._diffs[idx]
+            self._errors = self._errors[idx]
+        self._trims = pre_cnt - len(self._curr_pop)
 
 
     def _select(self):
@@ -173,8 +159,9 @@ class ReverseGa:
         self._add_newpop(np.concatenate((self._mutants, self._babies)))
         # Make sure the best and the worst chromos
         # after the selection are correctly placed.
-        self._selects = np.argpartition(self._errors, (0, self.pop_size-1))
-        self._selects = self._selects[0:self.pop_size]
+        last_idx = min(self.pop_size, len(self._curr_pop))
+        self._selects = np.argpartition(self._errors, (0, last_idx-1))
+        self._selects = self._selects[0:last_idx]
         self._curr_pop = self._curr_pop[self._selects]
         self._diffs = self._diffs[self._selects]
         self._errors = self._errors[self._selects]
@@ -187,7 +174,6 @@ class ReverseGa:
             self._worst_error = worst
             self._worst_gen = self._gen_idx
         
-
 
     def _track(self):
         # Track statistics in this generation for review.
@@ -203,6 +189,7 @@ class ReverseGa:
             src = 'B'
         self._report.append([
             len(self._mutants), len(self._babies),
+            self._trims,    # number of duplicates that are trimmed
             sum(self._selects < n0),  # survivals
             sum((self._selects >= n0) & (self._selects < n1)),  # selected mutants
             sum(self._selects >= n1),   # selected babies (from crossovers)
@@ -214,5 +201,5 @@ class ReverseGa:
     def summary(self):
         return pd.DataFrame(
             self._report, columns=(
-                'mut', 'bab', 'p_in', 'm_in', 'b_in',
+                'mut', 'bab', 'dup', 'p_in', 'm_in', 'b_in',
                 'min_e', 'max_e', 'best', 'worst', 'src'))
