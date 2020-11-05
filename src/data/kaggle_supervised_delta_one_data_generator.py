@@ -15,6 +15,7 @@ class KaggleSupervisedDeltaOneDataGenerator(tf.keras.utils.Sequence):
             warmup_steps_values: Tuple[int, ...] = (5, 6, 7, 8, 9),
             density_bounds: Tuple[float, float] = (0.01, 0.99),
             board_size: Tuple[int, int] = (25, 25),
+            attach_epoch_to_y: bool = False,
             verbose: bool = False):
         self._batch_size = batch_size
         self._batches_per_epoch = (
@@ -22,6 +23,7 @@ class KaggleSupervisedDeltaOneDataGenerator(tf.keras.utils.Sequence):
         self._warmup_steps_values = warmup_steps_values
         self._density_bounds = density_bounds
         self._board_size = board_size
+        self._attach_epoch_to_y = attach_epoch_to_y
         self._verbose = verbose
         self._batches_start = None
         self._batches_stop = None
@@ -37,9 +39,11 @@ class KaggleSupervisedDeltaOneDataGenerator(tf.keras.utils.Sequence):
                 board_size=board_size,
                 verbose=verbose)
             for warmup_steps in warmup_steps_values]
+        self._epochs_generated = 0
         self.on_epoch_end()
 
     def on_epoch_end(self):
+        self._epochs_generated += 1
         if self._verbose:
             print(f"Generating a new epoch of combined delta 1 supervised data "
                   f"({self._batches_per_epoch} batches of size {self._batch_size}).")
@@ -68,7 +72,10 @@ class KaggleSupervisedDeltaOneDataGenerator(tf.keras.utils.Sequence):
         return self._batches_per_epoch
 
     def __getitem__(self, index):
-        return self._batches_stop[index], self._batches_start[index]
+        if not self._attach_epoch_to_y:
+            return self._batches_stop[index], self._batches_start[index]
+        else:
+            return self._batches_stop[index], (self._batches_start[index], self._epochs_generated)
 
 
 if __name__ == "__main__":
