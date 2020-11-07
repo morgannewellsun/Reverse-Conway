@@ -31,6 +31,7 @@ class TrainingRunnerCrossfade:
             val_freq: int = 1,
             epochs_initial: int,
             epochs_transition: int,
+            final_fade_in_weight: float,
             model_name: str,
             model_config: dict,
             max_epochs: int,
@@ -81,9 +82,10 @@ class TrainingRunnerCrossfade:
 
         loss_fn = CrossfadeLossFn(
             loss_fn_initial=tf.keras.losses.BinaryCrossentropy(),
-            loss_fn_final=TrueTargetLossFn(delta_steps=1, y_true_is_start=True),
+            loss_fn_fade_in=TrueTargetLossFn(delta_steps=1, y_true_is_start=True),
             epochs_initial=epochs_initial,
-            epochs_transition=epochs_transition  )
+            epochs_transition=epochs_transition,
+            final_fade_in_weight=final_fade_in_weight)
         acc_fns = [
             TrueTargetAccFn(delta_steps=0, name="StartAcc"),
             TrueTargetAccFn(delta_steps=delta_steps, name="StopAcc", y_true_is_start=True)]
@@ -154,8 +156,9 @@ if __name__ == "__main__":
         delta_steps=1,
         train_generator_name="KaggleSupervisedDeltaOneDataGenerator",
         train_generator_config={"batch_size": 128, "samples_per_epoch": 2**16},
-        epochs_initial=100,
-        epochs_transition=200,
+        epochs_initial=75,
+        epochs_transition=175,
+        final_fade_in_weight=0.7,
         model_name="BaselineConvModel",
         model_config={"n_filters": 128, "n_layers": 48},
         max_epochs=300,

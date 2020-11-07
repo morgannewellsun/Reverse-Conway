@@ -9,16 +9,18 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
     def __init__(
             self,
             loss_fn_initial: tf.keras.losses.Loss,
-            loss_fn_final: tf.keras.losses.Loss,
+            loss_fn_fade_in: tf.keras.losses.Loss,
             epochs_initial: int,
             epochs_transition: int,
+            final_fade_in_weight: float,
             name: Optional[str] = None,
             verbose: bool = False):
         super(CrossfadeLossFn, self).__init__(name=name)
         self._loss_fn_initial = loss_fn_initial
-        self._loss_fn_final = loss_fn_final
-        self._slope = tf.constant(-1 / epochs_transition, dtype=tf.float32)
-        self._intersect = tf.constant((epochs_initial + epochs_transition) / epochs_transition, dtype=tf.float32)
+        self._loss_fn_final = loss_fn_fade_in
+        self._slope = tf.constant(-1 * final_fade_in_weight / epochs_transition, dtype=tf.float32)
+        self._intersect = tf.constant(1 - epochs_initial * self._slope, dtype=tf.float32)
+        self._lower_bound = 1 - final_fade_in_weight
         self.epochs_seen = tf.Variable(initial_value=0.0, dtype=tf.float32)
         self._verbose = verbose
 
@@ -27,7 +29,7 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
         loss_final = self._loss_fn_final(y_true, y_pred)
         weight_initial = tf.clip_by_value(
             tf.add(tf.scalar_mul(self.epochs_seen, self._slope), self._intersect),
-            0.0, 1.0)
+            self._lower_bound, 1.0)
         weight_final = tf.subtract(1.0, weight_initial)
         if self._verbose:
             tf.print("", output_stream=sys.stdout)
