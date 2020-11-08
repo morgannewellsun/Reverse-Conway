@@ -5,7 +5,7 @@ from typing import *
 
 import tensorflow as tf
 
-from components.crossfade_loss_fn import CrossfadeLossFn
+from components.crossfade_loss_fn import CrossfadeLossFn, EpochsSeenUpdaterCallback
 from components.true_target_acc_fn import TrueTargetAccFn
 from components.true_target_loss_fn import TrueTargetLossFn
 from data.kaggle_supervised_data_generator import KaggleSupervisedDataGenerator
@@ -29,6 +29,9 @@ class TrainingRunnerCrossfade:
             val_generator_name: Optional[str] = None,
             val_generator_config: Optional[dict] = None,
             val_freq: int = 1,
+            epochs_initial: int,
+            epochs_transition: int,
+            final_fade_in_weight: float,
             model_name: str,
             model_config: dict,
             max_epochs: int,
@@ -46,6 +49,7 @@ class TrainingRunnerCrossfade:
             json.dump(run_config_dict, file, indent=4)
 
         # prepare training data generator
+        # train_generator_config["attach_epoch_to_y"] = True
         if train_generator_name == "KaggleSupervisedDataGenerator":
             train_generator = KaggleSupervisedDataGenerator(delta_steps=delta_steps, **train_generator_config)
         elif train_generator_name == "KaggleSupervisedDeltaOneDataGenerator":
@@ -76,21 +80,12 @@ class TrainingRunnerCrossfade:
         else:
             raise ValueError(f"{model_name} is not a supported model.")
 
-        # CONFIGURE SUPERVISION FADE OUT FUNCTION
-        def supervision_fade_out_fn(epochs_seen: int):
-            return tf.cast(tf.clip_by_value((1.5 + (epochs_seen / 200)), 0.0, 1.0), dtype=tf.float32)
-
         loss_fn = CrossfadeLossFn(
-            loss_fns=[
-                tf.keras.losses.BinaryCrossentropy(),
-                TrueTargetLossFn(delta_steps=1, y_true_is_start=True)],
-            weight_fns=[
-                supervision_fade_out_fn,
-                lambda epochs_seen: 1 - supervision_fade_out_fn(epochs_seen)],
-            batches_per_epoch=(
-                    train_generator._batches_per_epoch
-                    + (0 if val_generator is None else val_generator._batches_per_epoch)),
-            verbose=True)
+            loss_fn_initial=tf.keras.losses.BinaryCrossentropy(),
+            loss_fn_fade_in=TrueTargetLossFn(delta_steps=1, y_true_is_start=True),
+            epochs_initial=epochs_initial,
+            epochs_transition=epochs_transition,
+            final_fade_in_weight=final_fade_in_weight)
         acc_fns = [
             TrueTargetAccFn(delta_steps=0, name="StartAcc"),
             TrueTargetAccFn(delta_steps=delta_steps, name="StopAcc", y_true_is_start=True)]
@@ -99,6 +94,7 @@ class TrainingRunnerCrossfade:
         reverse_model.summary()
 
         # prepare callbacks
+        epochs_seen_updater_callback = EpochsSeenUpdaterCallback(loss_fn.epochs_seen)
         monitor_value_name = ("val_StopAcc" if val_generator is not None else "StopAcc")
         checkpoint_filepath = os.path.join(run_output_dir, "best_checkpoint.hdf5")
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -125,6 +121,7 @@ class TrainingRunnerCrossfade:
         csv_logging_callback = tf.keras.callbacks.CSVLogger(csv_logging_filepath)
         terminate_on_nan_callback = tf.keras.callbacks.TerminateOnNaN()
         callbacks = [
+            epochs_seen_updater_callback,
             checkpoint_callback,
             *visualization_callbacks,
             csv_logging_callback,
@@ -159,15 +156,38 @@ if __name__ == "__main__":
         delta_steps=1,
         train_generator_name="KaggleSupervisedDeltaOneDataGenerator",
         train_generator_config={"batch_size": 128, "samples_per_epoch": 2**16},
+        epochs_initial=75,
+        epochs_transition=175,
+        final_fade_in_weight=0.7,
         model_name="BaselineConvModel",
-        model_config={"n_filters": 128, "n_layers": 24},
+        model_config={"n_filters": 128, "n_layers": 48},
         max_epochs=300,
         visualize_first_n=5)
 
 
 
 
-    # TODO: TRY 37 layers, ideal!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
