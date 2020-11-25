@@ -30,4 +30,8 @@ class TrueTargetAccFn(tf.keras.losses.Loss):
         return true_target_acc
 
     def get_config(self):
-        return {"delta_steps": self._delta_steps, "name": self.name}
+        return {"delta_steps": self._delta_steps, "name": self.name, "y_true_is_start": self._y_true_is_start}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

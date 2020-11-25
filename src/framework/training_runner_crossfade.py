@@ -81,11 +81,11 @@ class TrainingRunnerCrossfade:
             raise ValueError(f"{model_name} is not a supported model.")
 
         loss_fn = CrossfadeLossFn(
-            loss_fn_initial=tf.keras.losses.BinaryCrossentropy(),
-            loss_fn_fade_in=TrueTargetLossFn(delta_steps=1, y_true_is_start=True),
             epochs_initial=epochs_initial,
             epochs_transition=epochs_transition,
-            final_fade_in_weight=final_fade_in_weight)
+            final_fade_in_weight=final_fade_in_weight,
+            name="CrossfadeLossFn",
+            verbose=True)
         acc_fns = [
             TrueTargetAccFn(delta_steps=0, name="StartAcc"),
             TrueTargetAccFn(delta_steps=delta_steps, name="StopAcc", y_true_is_start=True)]
@@ -151,6 +151,21 @@ class TrainingRunnerCrossfade:
 
 
 if __name__ == "__main__":
+
+    TrainingRunnerCrossfade.run(
+        root_output_dir=r"D:\Documents\Reverse Conway\Output",
+        delta_steps=1,
+        train_generator_name="KaggleSupervisedDeltaOneDataGenerator",
+        train_generator_config={"batch_size": 100, "samples_per_epoch": 1000},
+        epochs_initial=10,
+        epochs_transition=10,
+        final_fade_in_weight=0.7,
+        model_name="BaselineConvModel",
+        model_config={"n_filters": 10, "n_layers": 10},
+        max_epochs=10,
+        visualize_first_n=5)
+
+    """
     TrainingRunnerCrossfade.run(
         root_output_dir=r"D:\Documents\Reverse Conway\Output",
         delta_steps=1,
@@ -163,6 +178,7 @@ if __name__ == "__main__":
         model_config={"n_filters": 128, "n_layers": 48},
         max_epochs=300,
         visualize_first_n=5)
+    """
 
 
 

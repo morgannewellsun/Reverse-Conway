@@ -1,6 +1,8 @@
 import sys
 from typing import *
 
+from components.true_target_loss_fn import TrueTargetLossFn
+
 import tensorflow as tf
 
 
@@ -8,16 +10,20 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
 
     def __init__(
             self,
-            loss_fn_initial: tf.keras.losses.Loss,
-            loss_fn_fade_in: tf.keras.losses.Loss,
             epochs_initial: int,
             epochs_transition: int,
             final_fade_in_weight: float,
             name: Optional[str] = None,
             verbose: bool = False):
         super(CrossfadeLossFn, self).__init__(name=name)
-        self._loss_fn_initial = loss_fn_initial
-        self._loss_fn_final = loss_fn_fade_in
+        self._config = {
+            "epochs_initial": epochs_initial,
+            "epochs_transition": epochs_transition,
+            "final_fade_in_weight": final_fade_in_weight,
+            "name": name,
+            "verbose": verbose}
+        self._loss_fn_initial = tf.keras.losses.BinaryCrossentropy()
+        self._loss_fn_final = TrueTargetLossFn(delta_steps=1, y_true_is_start=True)
         self._slope = tf.constant(-1 * final_fade_in_weight / epochs_transition, dtype=tf.float32)
         self._intersect = tf.constant(1 - epochs_initial * self._slope, dtype=tf.float32)
         self._lower_bound = 1 - final_fade_in_weight
@@ -40,6 +46,13 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
             tf.scalar_mul(loss_initial, weight_initial),
             tf.scalar_mul(loss_final, weight_final))
         return weighted_average_loss
+
+    def get_config(self):
+        return self._config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class EpochsSeenUpdaterCallback(tf.keras.callbacks.Callback):

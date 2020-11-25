@@ -68,7 +68,7 @@ class KaggleSupervisedDeltaOneDataGenerator(tf.keras.utils.Sequence):
             (self._batches_per_epoch, self._batch_size, *self._board_size, 1))
 
     def __len__(self):
-        # self.on_epoch_end()  # https://github.com/tensorflow/tensorflow/issues/35911  applies to tf<=2.1
+        # self.on_epoch_end()  # https://github.com/tensorflow/tensorflow/issues/35911  uncomment if tf<=2.1
         return self._batches_per_epoch
 
     def __getitem__(self, index):
