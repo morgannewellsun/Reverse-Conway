@@ -4,8 +4,9 @@ from data.pretty_test_target import pretty_test_target
 from framework.visualizer import Visualizer
 
 # load model
-path_to_saved_model = r'D:\Documents\Reverse Conway\Output\15. largest densenet with growth rate of 8, promising results\20201013T100114 (delta 1)\saved_model'
-loaded_model = tf.keras.models.load_model(path_to_saved_model, compile=False)  # compile=True will fail!
+path_to_saved_model = r'D:\Documents\Reverse Conway\Reverse-Conway\pretrained_models\crossfade_baseline_delta_1'
+# loaded_model = tf.keras.models.load_model(path_to_saved_model, compile=False)  # compile=True will fail!
+loaded_model = tf.saved_model.load(path_to_saved_model)
 
 # inspect test input
 print(pretty_test_target.shape)
