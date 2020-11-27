@@ -1,0 +1,19 @@
+,key,value
+0,cnn_paths,"('../../Reverse-Conway/pretrained_models/crossfade_baseline_delta_1', '../../Reverse-Conway/pretrained_models/initial_baseline_delta_2', '../../Reverse-Conway/pretrained_models/initial_baseline_delta_3', '../../Reverse-Conway/pretrained_models/initial_baseline_delta_4', '../../Reverse-Conway/pretrained_models/initial_baseline_delta_5')"
+1,deltaset,"{1, 2, 3, 4, 5}"
+2,ga_cross,0.7
+3,ga_mut_div,100
+4,ga_max_iters,100
+5,ga_max_stales,2
+6,ga_mutate,0.7
+7,ga_pop_size,100
+8,ga_save_states,False
+9,ga_static_size,30
+10,game_idx_min,0
+11,game_idx_max,99999
+12,rand_seed,0
+13,stepwise,False
+14,track_details,False
+15,use_cnn,True
+16,start_time,2020-11-26 14:05:45.822101
+17,end_time,2020-11-26 21:37:48.618130

@@ -2,11 +2,17 @@
 
 # BEGIN USER SETTINGS
 
-cnn_path = '../../Reverse-Conway/pretrained_models/initial_baseline_delta_'
+cnn_paths = (
+    '../../Reverse-Conway/pretrained_models/crossfade_baseline_delta_1',
+    # '../../Reverse-Conway/pretrained_models/initial_baseline_delta_1',
+    '../../Reverse-Conway/pretrained_models/initial_baseline_delta_2',
+    '../../Reverse-Conway/pretrained_models/initial_baseline_delta_3',
+    '../../Reverse-Conway/pretrained_models/initial_baseline_delta_4',
+    '../../Reverse-Conway/pretrained_models/initial_baseline_delta_5' )
 # cnn_path = '../../Reverse-Conway/pretrained_models/supervised_baseline_delta_'
 rand_seed = 0             # Used in genetic algorithm ReverseGa
 ga_pop_size = 100
-ga_static_size = 50       # GA initial population from the static prob
+ga_static_size = 30       # GA initial population from the static prob
 ga_max_iters = 100
 ga_cross = 0.7              # GA cross ratio
 ga_mutate = 0.7             # GA mutation population ratio
@@ -20,9 +26,9 @@ output_dir = '../../gamelife_data/output/'
 # If False, bypass CNN results to save load time. Use raondom initial states.
 use_cnn = True
 # The following settings restricts to only a selected subset of data to test.
-deltaset = {1,2,3,4,5}        # Load only the model for specified deltas.
+deltaset = {1}        # Load only the model for specified deltas.
 game_idx_min = 0         # Kaggle test game indices from 50000 to 99999.
-game_idx_max = 99999      # To test for 1000 rows, use 51000
+game_idx_max = 50100      # To test for 1000 rows, use 51000
 stepwise = False          # If true, also run iteratively of 1-delta CNN.
 
 # END USER SETTINGS
@@ -63,10 +69,14 @@ if ga_save_states:
     result_header.extend(['Target State', 'CNN Start', 'GA Start'])
 
 
-def save_results(all_results):
+def save_results(all_submissions, all_results):
+    cols = ['id']
+    cols.extend(['start_' + str(j) for j in range(625)])
+    pd.DataFrame(all_submissions, columns=cols).to_csv(output_dir + 'submission.csv', index=False)
+
     # Record basic settings for later review with results.
     pd.DataFrame([
-        ['cnn_path', cnn_path],
+        ['cnn_paths', cnn_paths],
         ['deltaset', deltaset],
         ['ga_cross', ga_cross],
         ['ga_mut_div', ga_mut_div],
@@ -104,8 +114,8 @@ start_time = datetime.now().isoformat(' ')
 cnn_solver = dict()
 if use_cnn:
     for j in deltaset:
-        path_to_saved_model = cnn_path + str(j)
-        cnn = tf.keras.models.load_model(path_to_saved_model, compile=False)  # compile=True will fail!
+        # cnn = tf.keras.models.load_model(cnn_paths[j-1], compile=False)  # compile=True will fail!
+        cnn = tf.saved_model.load(cnn_paths[j-1])
         cnn_solver[j] = cnn
     mylog('CNN models loaded after {}'.format(timing()))
     cnn_manager = CnnMan(cnn_solver, stepwise)
@@ -125,6 +135,7 @@ ga = ReverseGa(conway, pop_size=ga_pop_size, max_iters=ga_max_iters,
                tracking=track_details, save_states=ga_save_states)
 
 all_results = []
+all_submissions = []
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 with open(output_dir + 'details.txt', 'w') as detail_file:
     for idx, row in data.iterrows():
@@ -141,7 +152,8 @@ with open(output_dir + 'details.txt', 'w') as detail_file:
             solv_1 = cnn_manager.revert(tf_arr, delta, ga_pop_size, ga_static_size)
         else:
             solv_1 = None
-        res = ga.revert(idx, delta, tf_arr.astype(bool), solv_1)
+        submission, res = ga.revert(idx, delta, tf_arr.astype(bool), solv_1)
+        all_submissions.append(submission)
         all_results.append(res)
         if track_details:
             res_dict = dict(zip(result_header[:7], res[:7]))
@@ -151,6 +163,6 @@ with open(output_dir + 'details.txt', 'w') as detail_file:
             mylog('Completed game {} after {}.'.format(idx, timing()))
 
 end_time = datetime.now().isoformat(' ')
-save_results(all_results)
+save_results(all_submissions, all_results)
 mylog('Solver completed.')
 
