@@ -10,6 +10,7 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
 
     def __init__(
             self,
+            delta_steps: int,
             epochs_initial: int,
             epochs_transition: int,
             final_fade_in_weight: float,
@@ -17,13 +18,14 @@ class CrossfadeLossFn(tf.keras.losses.Loss):
             verbose: bool = False):
         super(CrossfadeLossFn, self).__init__(name=name)
         self._config = {
+            "delta_steps": delta_steps,
             "epochs_initial": epochs_initial,
             "epochs_transition": epochs_transition,
             "final_fade_in_weight": final_fade_in_weight,
             "name": name,
             "verbose": verbose}
         self._loss_fn_initial = tf.keras.losses.BinaryCrossentropy()
-        self._loss_fn_final = TrueTargetLossFn(delta_steps=1, y_true_is_start=True)
+        self._loss_fn_final = TrueTargetLossFn(delta_steps=delta_steps, y_true_is_start=True)
         self._slope = tf.constant(-1 * final_fade_in_weight / epochs_transition, dtype=tf.float32)
         self._intersect = tf.constant(1 - epochs_initial * self._slope, dtype=tf.float32)
         self._lower_bound = 1 - final_fade_in_weight
