@@ -81,11 +81,11 @@ class TrainingRunnerCrossfade:
             raise ValueError(f"{model_name} is not a supported model.")
 
         loss_fn = CrossfadeLossFn(
+            delta_steps=delta_steps,
             epochs_initial=epochs_initial,
             epochs_transition=epochs_transition,
             final_fade_in_weight=final_fade_in_weight,
-            name="CrossfadeLossFn",
-            verbose=True)
+            name="CrossfadeLossFn")
         acc_fns = [
             TrueTargetAccFn(delta_steps=0, name="StartAcc"),
             TrueTargetAccFn(delta_steps=delta_steps, name="StopAcc", y_true_is_start=True)]
@@ -151,34 +151,19 @@ class TrainingRunnerCrossfade:
 
 
 if __name__ == "__main__":
-
-    TrainingRunnerCrossfade.run(
-        root_output_dir=r"D:\Documents\Reverse Conway\Output",
-        delta_steps=1,
-        train_generator_name="KaggleSupervisedDeltaOneDataGenerator",
-        train_generator_config={"batch_size": 100, "samples_per_epoch": 1000},
-        epochs_initial=10,
-        epochs_transition=10,
-        final_fade_in_weight=0.7,
-        model_name="BaselineConvModel",
-        model_config={"n_filters": 10, "n_layers": 10},
-        max_epochs=10,
-        visualize_first_n=5)
-
-    """
-    TrainingRunnerCrossfade.run(
-        root_output_dir=r"D:\Documents\Reverse Conway\Output",
-        delta_steps=1,
-        train_generator_name="KaggleSupervisedDeltaOneDataGenerator",
-        train_generator_config={"batch_size": 128, "samples_per_epoch": 2**16},
-        epochs_initial=75,
-        epochs_transition=175,
-        final_fade_in_weight=0.7,
-        model_name="BaselineConvModel",
-        model_config={"n_filters": 128, "n_layers": 48},
-        max_epochs=300,
-        visualize_first_n=5)
-    """
+    for delta_steps in [2, 3, 4, 5]:
+        TrainingRunnerCrossfade.run(
+            root_output_dir=r"D:\Documents\Reverse Conway\Output",
+            delta_steps=delta_steps,
+            train_generator_name="KaggleSupervisedDataGenerator",
+            train_generator_config={"batch_size": 128, "samples_per_epoch": 2**15},
+            epochs_initial=75,
+            epochs_transition=175,
+            final_fade_in_weight=0.7,
+            model_name="BaselineConvModel",
+            model_config={"n_filters": 128, "n_layers": 48},
+            max_epochs=300,
+            visualize_first_n=1)
 
 
 
