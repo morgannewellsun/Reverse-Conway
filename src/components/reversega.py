@@ -62,15 +62,18 @@ class ReverseGa:
         ga_result = self._curr_pop[0]
         target_lives = stop_state.sum()
         ga_lives = ga_result.sum()
+        submission = [game_idx]
+        submission.extend(ga_result.flatten().astype(int).tolist())
         if self._save_states:
-            return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
+            more = [game_idx, delta, target_lives, cnn_lives, cnn_errors,
                     ga_lives, self._best_error, 
                     ''.join(map(str, stop_state.flatten().astype(int).tolist())),
                     ''.join(map(str, cnn_guess.flatten().astype(int).tolist())),
                     ''.join(map(str, ga_result.flatten().astype(int).tolist())) ]
         else:
-            return [game_idx, delta, target_lives, cnn_lives, cnn_errors,
+            more = [game_idx, delta, target_lives, cnn_lives, cnn_errors,
                     ga_lives, self._best_error]
+        return submission, more
             
 
     def _reset(self, guess):
