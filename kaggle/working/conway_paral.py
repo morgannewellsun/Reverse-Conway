@@ -294,6 +294,12 @@ class GA:
         return self._iterate_last(target, population, population_diffs, population_diff_counts)
 
 
+def evaluation(stop_state: np.ndarray, start_state: np.ndarray) -> None:
+    # stop_state.shape = (None, 25, 25, 1)
+    # start_state.shape = (None, 25, 25, 1)
+    pass
+
+
 if __name__ == "__main__":
 
     print("LOADED!!!")
@@ -332,7 +338,6 @@ if __name__ == "__main__":
     my_ga = GA(iterations=10, delta=1, mutations_per_board=5)
     ga_output = my_ga.refine(my_target, output)
     print(ga_output)
-
 
 
 
