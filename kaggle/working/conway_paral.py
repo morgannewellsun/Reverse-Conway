@@ -2,60 +2,60 @@
 # This Python 3 environment comes with many helpful analytics libraries installed
 # It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python
 
+import pprint
 from typing import *
 
-import numpy as np  # linear algebra
-import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
+import numpy as np
+import pandas as pd
 import tensorflow as tf
 import time
-import pathlib
-from datetime import datetime
 
 # %% [code]
+# =====================================================================================================================
 # USER SETTINGS# USER SETTINGS
 
 MODEL_ROOT_DIR = '../input/conway/cnn_models/'
 CNN_PATHS = {
-    # "delta_1_final": MODEL_ROOT_DIR + "delta_1_final",
-    # "delta_1": MODEL_ROOT_DIR + "delta_1",
+    "delta_1_final": MODEL_ROOT_DIR + "delta_1_final",
+    "delta_1": MODEL_ROOT_DIR + "delta_1",
     # "delta_2": MODEL_ROOT_DIR + "delta_2",
     # "delta_3": MODEL_ROOT_DIR + "delta_3",
     # "delta_4": MODEL_ROOT_DIR + "delta_4",
-    "delta_5": MODEL_ROOT_DIR + "delta_5",
+    # "delta_5": MODEL_ROOT_DIR + "delta_5",
 }
-# TODO RESTORE LOADING
-CNN_MODELS = dict([(name, tf.saved_model.load(path)) for name, path in CNN_PATHS.items()])
 KAGGLE_TEST_FILE_PATH = '../input/conways-reverse-game-of-life-2020/test.csv'
 OUTPUT_DIR = './'
 
-BATCH_SIZE = 16  # Delta group size
-RANDOM_SEED = 0  # Used in genetic algorithm ReverseGa
+# Batch size affects both the CNN and the GA.
+BATCH_SIZE = 128  # batch size
 
-GA_STATIC_POP = 30  # GA initial population from the static prob
-GA_DYNAMIC_POP = 70  # GA initial population from the dynamic prob
-GA_TOTAL_POP = GA_STATIC_POP + GA_DYNAMIC_POP + 2
+# The following settings control the CNN.
+CNN_USE_DELTA_1_FINAL = True  # whether or not to use an aggressive model for delta = 1
 
-# ga_static_1 = 10  # GA initial population from the static prob, step-wise
-# ga_static_n = 10  # GA initial population from the static prob, direct solver
-# ga_dynamic_1 = 10  # GA initial population from the dynamic prob, step-wise
-# ga_dynamic_n = 10  # GA initial population from the dynamic prob, direct solver
-# ga_pop_size = ga_static_1 + ga_static_n + ga_dynamic_1 + ga_dynamic_n
-# ga_max_iters = 100
-# ga_cross = 0.7  # GA cross ratio
-# ga_mutate = 0.7  # GA mutation population ratio
-# ga_mut_div = 100  # GA cell mutation probability is 1/ga_mut_div
-# ga_save_states = False  # Should we save CNN state, GA state, and end state?
-# status_freq = 200  # Report frequency in terms of number of games
-# track_details = False
+# The following settings control genetic algorithm population initialization.
+GA_STATIC_PROB_THRESHOLD_SPAN = 0.5  # half-width of range of thresholds for static
+GA_STATIC_POP = 12  # GA initial population from the static prob
+GA_DYNAMIC_POP = 50  # GA initial population from the dynamic prob
+
+# The following settings control genetic algorithm dynamics.
+GA_ITERATIONS = 100
+GA_MUTATION_TYPE = "MUTATION_RATE"
+GA_MUTATION_RATE = 0.1
+GA_MUTATIONS_PER_BOARD = 5  # unused
 
 # The following settings restricts to only a selected subset of data to test.
-DELTA_SET = {1}  # Load only the model for specified deltas. To load all, use {1,2,3,4,5}
+DELTA_SET = {1, 2, 3, 4, 5}  # Load only the model for specified deltas. To load all, use {1,2,3,4,5}
 GAME_IDX_MIN = 50000  # Kaggle test game indices from 50000 to 99999.
-GAME_IDX_MAX = 50100  # To test for 1000 rows, use 51000
+GAME_IDX_MAX = 52000  # To test for 1000 rows, use 51000
+
+# Don't touch.
+GA_TOTAL_POP = GA_STATIC_POP + GA_DYNAMIC_POP + 2
 
 
 # %% [code]
+# =====================================================================================================================
 # Conway's game logic
+
 
 class BinaryConwayForwardPropFn:
 
@@ -79,7 +79,7 @@ class BinaryConwayForwardPropFn:
     def _one_delta(self, inputs):
         if self._numpy_mode:
             neighbors = [np.roll(inputs, shift, (-3, -2)) for shift in self._moore_offsets]
-            live_neighbor_counts = np.count_nonzero(neighbors, axis=0, dtype=tf.int32)
+            live_neighbor_counts = np.count_nonzero(neighbors, axis=0)
             two_live_neighbors = np.equal(live_neighbor_counts, 2)
             three_live_neighbors = np.equal(live_neighbor_counts, 3)
             outputs = np.logical_or(three_live_neighbors, np.logical_and(two_live_neighbors, inputs))
@@ -95,6 +95,7 @@ class BinaryConwayForwardPropFn:
 # %% [code]
 # =====================================================================================================================
 # Generate initial reverse same guesses using CNN.
+
 
 class CNN:
     # Initializes a GA population using a CNN reverse model.
@@ -121,6 +122,8 @@ class CNN:
                 else tf.constant(0.5)
             ),
             shape=(-1, 1, 1, 1, 1))
+
+        # print(self._bars_static)                                                                                        # TODO remove
 
     '''
     def _revert_many(self, model, stop_states):
@@ -154,8 +157,6 @@ class CNN:
     def revert(self, stop_state: tf.Tensor) -> tf.Tensor:
         # stop_state: (batch, 25, 25, 1)
         # output: (population, batch, 25, 25, 1)
-        if self._population_size_dynamic == 0 and self._population_size_static == 0:
-            raise ValueError("At least one population size must be nonzero")
         stop_state_expanded = tf.expand_dims(stop_state, axis=0)
         all_zeros = tf.zeros_like(stop_state_expanded, dtype=tf.bool)
         guesses = [stop_state_expanded, all_zeros]
@@ -170,13 +171,19 @@ class CNN:
 # =====================================================================================================================
 # Enhance revert game results using genetic algorithm.
 
+
 class GA:
 
-    def __init__(self, *, iterations: int, delta: int, mutations_per_board: int):
+    def __init__(self, *, iterations: int, delta: int):
         self._conway = BinaryConwayForwardPropFn()
         self._iterations = iterations
         self._delta = delta
-        self._mutations_per_board = tf.constant(mutations_per_board)
+        if GA_MUTATION_TYPE == "MUTATIONS_PER_BOARD":
+            self._mutations_per_board = tf.constant(GA_MUTATIONS_PER_BOARD)
+        elif GA_MUTATION_TYPE == "MUTATION_RATE":
+            self._mutation_rate = tf.constant(GA_MUTATION_RATE, dtype=tf.float32)
+        else:
+            raise NotImplementedError
 
     @tf.function(input_signature=[
         tf.TensorSpec(shape=(GA_TOTAL_POP, None, 25, 25, 1), dtype=tf.bool),
@@ -188,7 +195,14 @@ class GA:
         target_area_sizes = tf.reshape(
             tf.math.count_nonzero(target_areas, axis=(-3, -2, -1), dtype=tf.int32),
             shape=(GA_TOTAL_POP, -1, 1, 1, 1))  # (pop, batch, 1, 1, 1)
-        muter_threshold = tf.cast(self._mutations_per_board / (target_area_sizes + 1), dtype=tf.float32)  # (pop, batch, 1, 1, 1)
+        if GA_MUTATION_TYPE == "MUTATIONS_PER_BOARD":
+            muter_threshold = tf.cast(
+                self._mutations_per_board / (target_area_sizes + 1),
+                dtype=tf.float32)  # (pop, batch, 1, 1, 1)
+        elif GA_MUTATION_TYPE == "MUTATION_RATE":
+            muter_threshold = self._mutation_rate
+        else:
+            raise NotImplementedError
         muters = tf.random.uniform(
             shape=(GA_TOTAL_POP, 1, 25, 25, 1),
             minval=0, maxval=1,
@@ -212,12 +226,15 @@ class GA:
     @tf.function(input_signature=[
         tf.TensorSpec(shape=(None, 25, 25, 1), dtype=tf.bool),
         tf.TensorSpec(shape=(GA_TOTAL_POP, None, 25, 25, 1), dtype=tf.bool)])
-    def _calculate_diffs_and_counts(self, target: tf.Tensor, population: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+    def _calculate_diffs_and_match_counts(
+            self, target: tf.Tensor, population: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         for _ in range(self._delta):
             population = self._conway(population)
         diffs = tf.math.logical_xor(population, target)  # (pop, batch, 25, 25, 1)
-        diff_counts = tf.transpose(tf.math.count_nonzero(diffs, axis=(-3, -2, -1), dtype=tf.int32))  # (batch, pop)
-        return diffs, diff_counts
+        match_counts = (
+                tf.constant(625, dtype=tf.int32)
+                - tf.transpose(tf.math.count_nonzero(diffs, axis=(-3, -2, -1), dtype=tf.int32)))  # (batch, pop)
+        return diffs, match_counts
 
     @tf.function(input_signature=[
         tf.TensorSpec(shape=(None, 25, 25, 1), dtype=tf.bool),
@@ -229,19 +246,22 @@ class GA:
             target: tf.Tensor,
             population: tf.Tensor,
             population_diffs: tf.Tensor,
-            population_diff_counts: tf.Tensor
+            population_match_counts: tf.Tensor
     ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
         mutations = self._generate_mutations(population, population_diffs)  # (pop_m, batch, 25, 25, 1)
         crossovers = self._generate_crossovers(population)  # (pop_c, batch, 25, 25, 1)
-        mutation_diffs, mutation_diff_counts = self._calculate_diffs_and_counts(target, mutations)  # (pop_m, batch, 25, 25, 1) (batch, pop_m)
-        crossover_diffs, crossover_diff_counts = self._calculate_diffs_and_counts(target, crossovers)  # (pop_c, batch, 25, 25, 1) (batch, pop_c)
+        mutation_diffs, mutation_diff_counts = self._calculate_diffs_and_match_counts(
+            target, mutations)  # (pop_m, batch, 25, 25, 1) (batch, pop_m)
+        crossover_diffs, crossover_diff_counts = self._calculate_diffs_and_match_counts(
+            target, crossovers)  # (pop_c, batch, 25, 25, 1) (batch, pop_c)
         population = tf.concat(
             [population, mutations, crossovers], axis=0)  # (pop_pmc, batch, 25, 25, 1)
         population_diffs = tf.concat(
             [population_diffs, mutation_diffs, crossover_diffs], axis=0)  # (pop_pmc, batch, 25, 25, 1)
-        population_diff_counts = tf.concat(
-            [population_diff_counts, mutation_diff_counts, crossover_diff_counts], axis=1)  # (batch, pop_pmc)
-        population_diff_counts, best_indices = tf.math.top_k(population_diff_counts, k=GA_TOTAL_POP, sorted=False)  # (batch, pop_p)
+        population_match_counts = tf.concat(
+            [population_match_counts, mutation_diff_counts, crossover_diff_counts], axis=1)  # (batch, pop_pmc)
+        population_match_counts, best_indices = tf.math.top_k(
+            population_match_counts, k=GA_TOTAL_POP, sorted=False)  # (batch, pop_p)
         population = tf.transpose(tf.gather(
             params=tf.transpose(population, perm=[1, 0, 2, 3, 4]),  # (batch, pop_p, 25, 25, 1)
             indices=best_indices,  # (batch, pop_p)
@@ -252,7 +272,7 @@ class GA:
             indices=best_indices,  # (batch, pop_p)
             axis=1,
             batch_dims=1), perm=[1, 0, 2, 3, 4])  # (pop_p, batch, 25, 25, 1)
-        return population, population_diffs, population_diff_counts
+        return population, population_diffs, population_match_counts
 
     @tf.function(input_signature=[
         tf.TensorSpec(shape=(None, 25, 25, 1), dtype=tf.bool),
@@ -264,17 +284,19 @@ class GA:
             target: tf.Tensor,
             population: tf.Tensor,
             population_diffs: tf.Tensor,
-            population_diff_counts: tf.Tensor
+            population_match_counts: tf.Tensor
     ) -> tf.Tensor:
         mutations = self._generate_mutations(population, population_diffs)  # (pop_m, batch, 25, 25, 1)
         crossovers = self._generate_crossovers(population)  # (pop_c, batch, 25, 25, 1)
-        mutation_diffs, mutation_diff_counts = self._calculate_diffs_and_counts(target, mutations)  # (pop_m, batch, 25, 25, 1) (batch, pop_m)
-        crossover_diffs, crossover_diff_counts = self._calculate_diffs_and_counts(target, crossovers)  # (pop_c, batch, 25, 25, 1) (batch, pop_c)
+        mutation_diffs, mutation_diff_counts = self._calculate_diffs_and_match_counts(
+            target, mutations)  # (pop_m, batch, 25, 25, 1) (batch, pop_m)
+        crossover_diffs, crossover_diff_counts = self._calculate_diffs_and_match_counts(
+            target, crossovers)  # (pop_c, batch, 25, 25, 1) (batch, pop_c)
         population = tf.concat(
             [population, mutations, crossovers], axis=0)  # (pop_pmc, batch, 25, 25, 1)
-        population_diff_counts = tf.concat(
-            [population_diff_counts, mutation_diff_counts, crossover_diff_counts], axis=1)  # (batch, pop_pmc)
-        population_diff_counts, best_indices = tf.math.top_k(population_diff_counts, k=1, sorted=False)  # (batch, 1)
+        population_match_counts = tf.concat(
+            [population_match_counts, mutation_diff_counts, crossover_diff_counts], axis=1)  # (batch, pop_pmc)
+        population_match_counts, best_indices = tf.math.top_k(population_match_counts, k=1, sorted=False)  # (batch, 1)
         population = tf.transpose(tf.gather(
             params=tf.transpose(population, perm=[1, 0, 2, 3, 4]),  # (batch, 1, 25, 25, 1)
             indices=best_indices,  # (batch, pop_p)
@@ -287,95 +309,179 @@ class GA:
         tf.TensorSpec(shape=(None, 25, 25, 1), dtype=tf.bool),
         tf.TensorSpec(shape=(GA_TOTAL_POP, None, 25, 25, 1), dtype=tf.bool)])
     def refine(self, target, population) -> tf.Tensor:
-        population_diffs, population_diff_counts = self._calculate_diffs_and_counts(target, population)
+        population_diffs, population_match_counts = self._calculate_diffs_and_match_counts(target, population)
         for _ in range(self._iterations - 1):
-            population, population_diffs, population_diff_counts = self._iterate(
-                target, population, population_diffs, population_diff_counts)
-        return self._iterate_last(target, population, population_diffs, population_diff_counts)
+            population, population_diffs, population_match_counts = self._iterate(
+                target, population, population_diffs, population_match_counts)
+        return self._iterate_last(target, population, population_diffs, population_match_counts)
+
+# %% [code]
+# =====================================================================================================================
+# Solver strategy definitions.
 
 
-def evaluation(stop_state: np.ndarray, start_state: np.ndarray) -> None:
-    # stop_state.shape = (None, 25, 25, 1)
-    # start_state.shape = (None, 25, 25, 1)
-    pass
+class Solver:
+
+    def __init__(self, strategy: str, cnn_models: Dict[str, tf.function]):
+        self._strategy = strategy
+        self._cnn_models = cnn_models
+
+    @staticmethod
+    def _collect_into_batches(target_stop_states: List[np.ndarray], batch_size: int) -> List[np.ndarray]:
+        batches = []
+        batch_list = []
+        for target_stop_state in target_stop_states:
+            batch_list.append(target_stop_state)
+            if len(batch_list) == batch_size:
+                batches.append(np.stack(batch_list))
+                batch_list = []
+        if len(batch_list) > 0:
+            batches.append(np.stack(batch_list))
+
+        # print("Batches\n", len(batches), "\n", batches[0].shape, "\n", batches[-1].shape)                               # TODO remove
+
+        print(f"Data split into batches: {time.time() - MAIN_START_TIME}")
+        return batches
+
+    def solve(self, delta: int, target_stop_states: List[np.ndarray]) -> List[np.ndarray]:
+        if self._strategy == "stackwise":
+            return self._solve_stackwise(delta, target_stop_states)
+        else:
+            raise NotImplementedError
+
+    def _solve_stackwise(self, delta: int, target_stop_states: List[np.ndarray]) -> List[np.ndarray]:
+        # target_stop_states: [(25, 25, 1)]
+        # returns: [(25, 25, 1)]
+
+        batches = Solver._collect_into_batches(target_stop_states, BATCH_SIZE)  # [(batch, 25, 25, 1)]
+        batches = [tf.constant(batch, dtype=bool) for batch in batches]
+
+        cnn_reverter = None
+        ga_refiner = GA(iterations=GA_ITERATIONS, delta=delta)
+
+        while delta > 1:
+            if cnn_reverter is None:
+                cnn_reverter = CNN(
+                    model=self._cnn_models[f"delta_1"],
+                    population_size_static=GA_STATIC_POP,
+                    population_size_dynamic=GA_DYNAMIC_POP,
+                    static_prob_threshold_span=GA_STATIC_PROB_THRESHOLD_SPAN)
+            cnn_output_batches = []  # [(pop, batch, 25, 25, 1)]
+            for batch in batches:
+                out = cnn_reverter.revert(batch)
+                # print("CNN\n", out.get_shape())                                                                         # TODO remove
+                cnn_output_batches.append(out)
+            print(f"CNN used to revert from delta {delta} to {delta - 1}: {time.time() - MAIN_START_TIME}")
+            ga_output_batches = []
+            for batch, cnn_output_batch in zip(batches, cnn_output_batches):
+                out = ga_refiner.refine(batch, cnn_output_batch)
+                # print("GA\n", out.get_shape())                                                                          # TODO remove
+                ga_output_batches.append(out)
+            print(f"GA used to refine CNN predictions for {delta - 1}: {time.time() - MAIN_START_TIME}")
+            batches = ga_output_batches
+            delta -= 1
+
+        cnn_reverter = CNN(
+            model=self._cnn_models["delta_1_final" if CNN_USE_DELTA_1_FINAL else "delta_1"],
+            population_size_static=GA_STATIC_POP,
+            population_size_dynamic=GA_DYNAMIC_POP,
+            static_prob_threshold_span=GA_STATIC_PROB_THRESHOLD_SPAN)
+        cnn_output_batches = []  # [(pop, batch, 25, 25, 1)]
+        for batch in batches:
+            cnn_output_batches.append(cnn_reverter.revert(batch))
+        print(f"CNN used to revert from delta 1 to predicted start: {time.time() - MAIN_START_TIME}")
+        output_batches = []
+        for batch, cnn_output_batch in zip(batches, cnn_output_batches):
+            output_batches.append(ga_refiner.refine(batch, cnn_output_batch))
+        print(f"GA used to refine CNN predictions for predicted start: {time.time() - MAIN_START_TIME}")
+
+        output = []
+        for output_batch in output_batches:
+            output.extend(list(output_batch.numpy()))
+        return output
 
 
-
-output_dir = ''
-
-def eval_result(delta_stats, delta_solvers, delta_errors) -> None:
-    # delta_stats: dict from delta to list of (game index, target lives)
-    # delta_solvers: dict from delta to game solvers of shape (1, games, 25, 25, 1)
-    # delta_errors: dict from delta to (solver livers, solver errors)
-    result = []
-    submissions = []
-    for d in (1,2,3,4,5):
-        for a, b, c in zip(delta_stats[d], delta_errors[d], delta_solvers[d]):
-            result.append([d, *a, *b])
-            subm = [a[0], *(c.flatten().astype(int).tolist())]
-            submissions.append(subm)
-
-    game_size = 25 * 25
-    cols = ['id']
-    cols.extend(['start_' + str(j) for j in range(game_size)])
-    pd.DataFrame(submissions, columns=cols).to_csv(output_dir + 'submission.csv', index=False)
-
-    with pd.ExcelWriter(output_dir + 'run_stats.xlsx', engine='xlsxwriter') as writer:
-        data = np.DataFrame(result, columns=(
-            'delta', 'game index', 'target lives', 'solve lives', 'solve errors'))
-        data.to_excel(writer, sheet_name='result')
-    
-        # Generate more statistical reports based on the above data.
-        # statistics by errors
-        err_col = ['delta ' + str(j) for j in range(6)]
-        err_stats = pd.DataFrame([[0]*6]*game_size, columns=err_col)
-        # statistics by number of lives at the end state
-        liv_stats = pd.DataFrame([[0]*2]*game_size, columns=('count', 'fails'))
-        del_stats = pd.DataFrame([[0]*3]*6, columns=('count', 'hits', 'fails'))
-    
-        for j, row in data.iterrows():
-            (delta, game_index, target_lives, 
-             solv_lives, solv_errors) = map(int, row)
-    
-            err_stats.iloc[solv_errors, delta] += 1
-            liv_stats.iloc[target_lives, 0] += 1
-            liv_stats.iloc[target_lives, 1] += solv_errors
-            del_stats.iloc[delta, 0] += 1
-            del_stats.iloc[delta, 2] += solv_errors
-            if solv_errors == 0:
-                del_stats.iloc[delta, 1] += 1
-    
-        err_stats['total'] = err_stats.sum(axis=1)
-        err_stats = err_stats.loc[err_stats['total']>0, :]
-        err_stats.to_excel(writer, sheet_name='errors')
-    
-        liv_stats = liv_stats.loc[liv_stats['count']>0, :]
-        liv_stats['accuracy'] = 1 - liv_stats['fails'] / liv_stats['count'] / game_size
-        liv_stats.to_excel(writer, sheet_name='lives')
-    
-        del_stats = del_stats[del_stats.index > 0]
-        del_stats['accuracy'] = 1 - del_stats['fails'] / del_stats['count'] / game_size
-        del_stats.to_excel(writer, sheet_name='deltas')
+# %% [code]
+# =====================================================================================================================
+# Main function.
 
 
+class Evaluator:
+
+    conway = BinaryConwayForwardPropFn(numpy_mode=True)
+
+    @staticmethod
+    def evaluate(delta: int, predicted_start_states: List[np.ndarray], target_stop_states: List[np.ndarray]) -> Dict:
+        target_stop_live_cell_count = 0
+        predicted_stop_live_cell_count = 0
+        predicted_start_live_cell_count = 0
+        stop_error_cell_count = 0
+        total_cell_count = 0
+        for predicted_start_state, target_stop_state in zip(predicted_start_states, target_stop_states):
+            target_stop_live_cell_count += np.sum(target_stop_state)
+            predicted_start_live_cell_count += np.sum(predicted_start_state)
+            predicted_stop_state = predicted_start_state
+            for _ in range(delta):
+                predicted_stop_state = Evaluator.conway(predicted_stop_state)
+            predicted_stop_live_cell_count += np.sum(predicted_stop_state)
+            stop_error_cell_count += 625 - np.count_nonzero(np.equal(predicted_stop_state, target_stop_state))
+            total_cell_count += 625
+        stats = {
+            # "target_stop_live_cell_count": target_stop_live_cell_count,
+            # "predicted_stop_live_cell_count": predicted_stop_live_cell_count,
+            # "predicted_start_live_cell_count": predicted_start_live_cell_count,
+            # "stop_error_cell_count": stop_error_cell_count,
+            # "total_cell_count": total_cell_count,
+            "target_stop_live_rate": target_stop_live_cell_count / total_cell_count,
+            "predicted_stop_live_rate": predicted_stop_live_cell_count / total_cell_count,
+            "predicted_start_live_rate": predicted_start_live_cell_count / total_cell_count,
+            "error_rate": stop_error_cell_count / total_cell_count}
+        return stats
 
 
+# %% [code]
+# =====================================================================================================================
+# Main function.
 
-
-
+MAIN_START_TIME = None
 
 if __name__ == "__main__":
 
-    print("LOADED!!!")
-    my_cnn = CNN(
-        model=CNN_MODELS["delta_5"],
-        population_size_static=GA_STATIC_POP,
-        population_size_dynamic=GA_DYNAMIC_POP,
-        static_prob_threshold_span=0.1)
+    MAIN_START_TIME = time.time()
+    print("")
+
+    cnn_models = dict([(name, tf.saved_model.load(path)) for name, path in CNN_PATHS.items()])
+    print(f"CNN models loaded: {time.time() - MAIN_START_TIME}")
 
     data = pd.read_csv(KAGGLE_TEST_FILE_PATH, index_col=0, dtype='int')
+    print(f"Data loaded: {time.time() - MAIN_START_TIME}")
 
     delta_groups = {1: [], 2: [], 3: [], 4: [], 5: []}
+    for idx, row in data.iterrows():
+        if idx < GAME_IDX_MIN:
+            continue
+        if idx > GAME_IDX_MAX:
+            break
+        delta = row[0]
+        if delta not in DELTA_SET:
+            continue
+        target_stop_state = np.array(row[1:]).astype(np.float32).reshape((25, 25, 1))
+        delta_groups[delta].append(target_stop_state)
+    print(f"Data parsed to numpy: {time.time() - MAIN_START_TIME}")
+
+    solver = Solver(strategy="stackwise", cnn_models=cnn_models)
+    for delta, target_stop_states in delta_groups.items():
+        print("")
+        print(f"Starting to solve delta {delta}: {time.time() - MAIN_START_TIME}")
+        predicted_start_states = solver.solve(delta, target_stop_states)
+        print(f"Evaluating delta {delta}: {time.time() - MAIN_START_TIME}")
+        stats = Evaluator.evaluate(delta, predicted_start_states, target_stop_states)
+        pprint.pprint(stats, indent=4)
+
+
+    """
+    delta_groups = {1: [], 2: [], 3: [], 4: [], 5: []}
+    delta_stats = {1: [], 2: [], 3: [], 4: [], 5: []}
     for idx, row in data.iterrows():
         if idx < GAME_IDX_MIN:
             continue
@@ -403,20 +509,78 @@ if __name__ == "__main__":
     my_ga = GA(iterations=10, delta=1, mutations_per_board=5)
     ga_output = my_ga.refine(my_target, output)
     print(ga_output)
+    """
+
+"""
+# %% [code]
+# =====================================================================================================================
+# Evaluation tools.
 
 
+def evaluation(stop_state: np.ndarray, start_state: np.ndarray) -> None:
+    # stop_state.shape = (None, 25, 25, 1)
+    # start_state.shape = (None, 25, 25, 1)
+    pass
 
 
+output_dir = ''
 
 
+def eval_result(delta_stats, delta_solvers, delta_errors) -> None:
+    # delta_stats: dict from delta to list of (game index, target lives)
+    # delta_solvers: dict from delta to game solvers of shape (1, games, 25, 25, 1)
+    # delta_errors: dict from delta to (solver livers, solver errors)
+    result = []
+    submissions = []
+    for d in (1, 2, 3, 4, 5):
+        for a, b, c in zip(delta_stats[d], delta_errors[d], delta_solvers[d]):
+            result.append([d, *a, *b])
+            subm = [a[0], *(c.flatten().astype(int).tolist())]
+            submissions.append(subm)
 
+    game_size = 25 * 25
+    cols = ['id']
+    cols.extend(['start_' + str(j) for j in range(game_size)])
+    pd.DataFrame(submissions, columns=cols).to_csv(output_dir + 'submission.csv', index=False)
 
+    with pd.ExcelWriter(output_dir + 'run_stats.xlsx', engine='xlsxwriter') as writer:
+        data = np.DataFrame(result, columns=(
+            'delta', 'game index', 'target lives', 'solve lives', 'solve errors'))
+        data.to_excel(writer, sheet_name='result')
 
+        # Generate more statistical reports based on the above data.
+        # statistics by errors
+        err_col = ['delta ' + str(j) for j in range(6)]
+        err_stats = pd.DataFrame([[0] * 6] * game_size, columns=err_col)
+        # statistics by number of lives at the end state
+        liv_stats = pd.DataFrame([[0] * 2] * game_size, columns=('count', 'fails'))
+        del_stats = pd.DataFrame([[0] * 3] * 6, columns=('count', 'hits', 'fails'))
 
+        for j, row in data.iterrows():
+            (delta, game_index, target_lives,
+             solv_lives, solv_errors) = map(int, row)
 
+            err_stats.iloc[solv_errors, delta] += 1
+            liv_stats.iloc[target_lives, 0] += 1
+            liv_stats.iloc[target_lives, 1] += solv_errors
+            del_stats.iloc[delta, 0] += 1
+            del_stats.iloc[delta, 2] += solv_errors
+            if solv_errors == 0:
+                del_stats.iloc[delta, 1] += 1
 
+        err_stats['total'] = err_stats.sum(axis=1)
+        err_stats = err_stats.loc[err_stats['total'] > 0, :]
+        err_stats.to_excel(writer, sheet_name='errors')
 
+        liv_stats = liv_stats.loc[liv_stats['count'] > 0, :]
+        liv_stats['accuracy'] = 1 - liv_stats['fails'] / liv_stats['count'] / game_size
+        liv_stats.to_excel(writer, sheet_name='lives')
 
+        del_stats = del_stats[del_stats.index > 0]
+        del_stats['accuracy'] = 1 - del_stats['fails'] / del_stats['count'] / game_size
+        del_stats.to_excel(writer, sheet_name='deltas')
+
+"""
 '''
 # %% [code]
 # Utility functions
