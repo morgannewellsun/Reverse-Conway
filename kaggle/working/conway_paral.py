@@ -300,6 +300,70 @@ def evaluation(stop_state: np.ndarray, start_state: np.ndarray) -> None:
     pass
 
 
+
+output_dir = ''
+
+def eval_result(delta_stats, delta_solvers, delta_errors) -> None:
+    # delta_stats: dict from delta to list of (game index, target lives)
+    # delta_solvers: dict from delta to game solvers of shape (1, games, 25, 25, 1)
+    # delta_errors: dict from delta to (solver livers, solver errors)
+    result = []
+    submissions = []
+    for d in (1,2,3,4,5):
+        for a, b, c in zip(delta_stats[d], delta_errors[d], delta_solvers[d]):
+            result.append([d, *a, *b])
+            subm = [a[0], *(c.flatten().astype(int).tolist())]
+            submissions.append(subm)
+
+    game_size = 25 * 25
+    cols = ['id']
+    cols.extend(['start_' + str(j) for j in range(game_size)])
+    pd.DataFrame(submissions, columns=cols).to_csv(output_dir + 'submission.csv', index=False)
+
+    with pd.ExcelWriter(output_dir + 'run_stats.xlsx', engine='xlsxwriter') as writer:
+        data = np.DataFrame(result, columns=(
+            'delta', 'game index', 'target lives', 'solve lives', 'solve errors'))
+        data.to_excel(writer, sheet_name='result')
+    
+        # Generate more statistical reports based on the above data.
+        # statistics by errors
+        err_col = ['delta ' + str(j) for j in range(6)]
+        err_stats = pd.DataFrame([[0]*6]*game_size, columns=err_col)
+        # statistics by number of lives at the end state
+        liv_stats = pd.DataFrame([[0]*2]*game_size, columns=('count', 'fails'))
+        del_stats = pd.DataFrame([[0]*3]*6, columns=('count', 'hits', 'fails'))
+    
+        for j, row in data.iterrows():
+            (delta, game_index, target_lives, 
+             solv_lives, solv_errors) = map(int, row)
+    
+            err_stats.iloc[solv_errors, delta] += 1
+            liv_stats.iloc[target_lives, 0] += 1
+            liv_stats.iloc[target_lives, 1] += solv_errors
+            del_stats.iloc[delta, 0] += 1
+            del_stats.iloc[delta, 2] += solv_errors
+            if solv_errors == 0:
+                del_stats.iloc[delta, 1] += 1
+    
+        err_stats['total'] = err_stats.sum(axis=1)
+        err_stats = err_stats.loc[err_stats['total']>0, :]
+        err_stats.to_excel(writer, sheet_name='errors')
+    
+        liv_stats = liv_stats.loc[liv_stats['count']>0, :]
+        liv_stats['accuracy'] = 1 - liv_stats['fails'] / liv_stats['count'] / game_size
+        liv_stats.to_excel(writer, sheet_name='lives')
+    
+        del_stats = del_stats[del_stats.index > 0]
+        del_stats['accuracy'] = 1 - del_stats['fails'] / del_stats['count'] / game_size
+        del_stats.to_excel(writer, sheet_name='deltas')
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
 
     print("LOADED!!!")
@@ -322,6 +386,7 @@ if __name__ == "__main__":
             continue
         tf_arr = np.array(row[1:]).astype(np.float32).reshape((25, 25, 1))
         delta_groups[delta].append(tf_arr)
+        delta_stats[delta].append((idx, sum(tf_arr)))   # sunheng
 
     for delta in [1]:
         np_problems = np.stack(delta_groups[delta])  # (n, 25, 25, 1)
