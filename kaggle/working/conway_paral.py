@@ -14,14 +14,13 @@ import time
 # =====================================================================================================================
 # USER SETTINGS# USER SETTINGS
 
-MODEL_ROOT_DIR = '../input/conway/cnn_models/'
 CNN_PATHS = {
-    "delta_1_final": MODEL_ROOT_DIR + "delta_1_final",
-    "delta_1": MODEL_ROOT_DIR + "delta_1",
-    # "delta_2": MODEL_ROOT_DIR + "delta_2",
-    # "delta_3": MODEL_ROOT_DIR + "delta_3",
-    # "delta_4": MODEL_ROOT_DIR + "delta_4",
-    # "delta_5": MODEL_ROOT_DIR + "delta_5",
+    "delta_1_final": '../input/conway1/delta_1_final',
+    "delta_1": '../input/conway/cnn_models/delta_1',
+    # "delta_2": '../input/conway/cnn_models/delta_2',
+    # "delta_3": '../input/conway/cnn_models/delta_3',
+    # "delta_4": '../input/conway/cnn_models/delta_4',
+    # "delta_5": '../input/conway/cnn_models/delta_5',
 }
 KAGGLE_TEST_FILE_PATH = '../input/conways-reverse-game-of-life-2020/test.csv'
 OUTPUT_DIR = './'
@@ -30,27 +29,26 @@ OUTPUT_DIR = './'
 BATCH_SIZE = 128  # batch size
 
 # The following settings control the CNN.
-CNN_USE_DELTA_1_FINAL = True  # whether or not to use an aggressive model for delta = 1
+CNN_USE_DELTA_1_FINAL = False  # whether or not to use an aggressive model for delta = 1
 
 # The following settings control genetic algorithm population initialization.
-GA_STATIC_PROB_THRESHOLD_SPAN = 0.5  # half-width of range of thresholds for static
-GA_STATIC_POP = 12  # GA initial population from the static prob
-GA_DYNAMIC_POP = 50  # GA initial population from the dynamic prob
+GA_STATIC_PROB_THRESHOLD_SPAN = 0.4  # half-width of range of thresholds for static
+GA_STATIC_POP = 20  # GA initial population from the static prob
+GA_DYNAMIC_POP = 80  # GA initial population from the dynamic prob
 
 # The following settings control genetic algorithm dynamics.
-GA_ITERATIONS = 100
+GA_ITERATIONS = 20
 GA_MUTATION_TYPE = "MUTATION_RATE"
-GA_MUTATION_RATE = 0.1
+GA_MUTATION_RATE = 0.2
 GA_MUTATIONS_PER_BOARD = 5  # unused
 
 # The following settings restricts to only a selected subset of data to test.
-DELTA_SET = {1, 2, 3, 4, 5}  # Load only the model for specified deltas. To load all, use {1,2,3,4,5}
+DELTA_SET = {1,2}  # Load only the model for specified deltas. To load all, use {1,2,3,4,5}
 GAME_IDX_MIN = 50000  # Kaggle test game indices from 50000 to 99999.
-GAME_IDX_MAX = 52000  # To test for 1000 rows, use 51000
+GAME_IDX_MAX = 50100  # To test for 1000 rows, use 51000
 
 # Don't touch.
 GA_TOTAL_POP = GA_STATIC_POP + GA_DYNAMIC_POP + 2
-
 
 # %% [code]
 # =====================================================================================================================
@@ -90,7 +88,6 @@ class BinaryConwayForwardPropFn:
             three_live_neighbors = tf.math.equal(live_neighbor_counts, 3)
             outputs = tf.math.logical_or(three_live_neighbors, tf.math.logical_and(two_live_neighbors, inputs))
         return outputs
-
 
 # %% [code]
 # =====================================================================================================================
@@ -165,7 +162,6 @@ class CNN:
         if self._population_size_static != 0:
             guesses.append(self._revert_static(stop_state))
         return tf.concat(guesses, axis=0)
-
 
 # %% [code]
 # =====================================================================================================================
@@ -400,7 +396,6 @@ class Solver:
             output.extend(list(output_batch.numpy()))
         return output
 
-
 # %% [code]
 # =====================================================================================================================
 # Main function.
@@ -438,6 +433,18 @@ class Evaluator:
             "error_rate": stop_error_cell_count / total_cell_count}
         return stats
 
+    @staticmethod
+    def submit(delta_indexes: List[int], delta_starts: List[np.ndarray]):
+        submissions = []
+        for d in delta_starts.keys():
+            for i, s in zip(delta_indexes[d], delta_starts[d]):
+                submissions.append([i, *(s.flatten().astype(int).tolist())])
+        cols = ['id']
+        cols.extend(['start_' + str(j) for j in range(625)])
+        df = pd.DataFrame(submissions, columns=cols)
+        df.sort_values(by='id')
+        df.to_csv(OUTPUT_DIR + 'submission.csv', index=False)
+
 
 # %% [code]
 # =====================================================================================================================
@@ -457,6 +464,8 @@ if __name__ == "__main__":
     print(f"Data loaded: {time.time() - MAIN_START_TIME}")
 
     delta_groups = {1: [], 2: [], 3: [], 4: [], 5: []}
+    delta_indexes = {1: [], 2: [], 3: [], 4: [], 5: []}
+    delta_starts = dict()
     for idx, row in data.iterrows():
         if idx < GAME_IDX_MIN:
             continue
@@ -467,308 +476,18 @@ if __name__ == "__main__":
             continue
         target_stop_state = np.array(row[1:]).astype(np.float32).reshape((25, 25, 1))
         delta_groups[delta].append(target_stop_state)
+        delta_indexes[delta].append(idx)
     print(f"Data parsed to numpy: {time.time() - MAIN_START_TIME}")
 
     solver = Solver(strategy="stackwise", cnn_models=cnn_models)
     for delta, target_stop_states in delta_groups.items():
+        if len(target_stop_states) == 0:
+            continue
         print("")
         print(f"Starting to solve delta {delta}: {time.time() - MAIN_START_TIME}")
         predicted_start_states = solver.solve(delta, target_stop_states)
+        delta_starts[delta] = predicted_start_states
         print(f"Evaluating delta {delta}: {time.time() - MAIN_START_TIME}")
         stats = Evaluator.evaluate(delta, predicted_start_states, target_stop_states)
         pprint.pprint(stats, indent=4)
-
-
-    """
-    delta_groups = {1: [], 2: [], 3: [], 4: [], 5: []}
-    delta_stats = {1: [], 2: [], 3: [], 4: [], 5: []}
-    for idx, row in data.iterrows():
-        if idx < GAME_IDX_MIN:
-            continue
-        if idx > GAME_IDX_MAX:
-            break
-        delta = row[0]
-        if delta not in DELTA_SET:
-            continue
-        tf_arr = np.array(row[1:]).astype(np.float32).reshape((25, 25, 1))
-        delta_groups[delta].append(tf_arr)
-        delta_stats[delta].append((idx, sum(tf_arr)))   # sunheng
-
-    for delta in [1]:
-        np_problems = np.stack(delta_groups[delta])  # (n, 25, 25, 1)
-
-        # TODO FIX BATCHING
-        batches = np.array_split(np_problems, len(delta_groups[delta]) // BATCH_SIZE, axis=0)  # [(b, 25, 25, 1)]
-
-        for np_batch in batches:
-            my_target = np_batch
-            my_stop_state = tf.constant(np_batch, dtype=tf.bool)
-            output = my_cnn.revert(my_stop_state)
-            break
-
-    my_ga = GA(iterations=10, delta=1, mutations_per_board=5)
-    ga_output = my_ga.refine(my_target, output)
-    print(ga_output)
-    """
-
-"""
-# %% [code]
-# =====================================================================================================================
-# Evaluation tools.
-
-
-def evaluation(stop_state: np.ndarray, start_state: np.ndarray) -> None:
-    # stop_state.shape = (None, 25, 25, 1)
-    # start_state.shape = (None, 25, 25, 1)
-    pass
-
-
-output_dir = ''
-
-
-def eval_result(delta_stats, delta_solvers, delta_errors) -> None:
-    # delta_stats: dict from delta to list of (game index, target lives)
-    # delta_solvers: dict from delta to game solvers of shape (1, games, 25, 25, 1)
-    # delta_errors: dict from delta to (solver livers, solver errors)
-    result = []
-    submissions = []
-    for d in (1, 2, 3, 4, 5):
-        for a, b, c in zip(delta_stats[d], delta_errors[d], delta_solvers[d]):
-            result.append([d, *a, *b])
-            subm = [a[0], *(c.flatten().astype(int).tolist())]
-            submissions.append(subm)
-
-    game_size = 25 * 25
-    cols = ['id']
-    cols.extend(['start_' + str(j) for j in range(game_size)])
-    pd.DataFrame(submissions, columns=cols).to_csv(output_dir + 'submission.csv', index=False)
-
-    with pd.ExcelWriter(output_dir + 'run_stats.xlsx', engine='xlsxwriter') as writer:
-        data = np.DataFrame(result, columns=(
-            'delta', 'game index', 'target lives', 'solve lives', 'solve errors'))
-        data.to_excel(writer, sheet_name='result')
-
-        # Generate more statistical reports based on the above data.
-        # statistics by errors
-        err_col = ['delta ' + str(j) for j in range(6)]
-        err_stats = pd.DataFrame([[0] * 6] * game_size, columns=err_col)
-        # statistics by number of lives at the end state
-        liv_stats = pd.DataFrame([[0] * 2] * game_size, columns=('count', 'fails'))
-        del_stats = pd.DataFrame([[0] * 3] * 6, columns=('count', 'hits', 'fails'))
-
-        for j, row in data.iterrows():
-            (delta, game_index, target_lives,
-             solv_lives, solv_errors) = map(int, row)
-
-            err_stats.iloc[solv_errors, delta] += 1
-            liv_stats.iloc[target_lives, 0] += 1
-            liv_stats.iloc[target_lives, 1] += solv_errors
-            del_stats.iloc[delta, 0] += 1
-            del_stats.iloc[delta, 2] += solv_errors
-            if solv_errors == 0:
-                del_stats.iloc[delta, 1] += 1
-
-        err_stats['total'] = err_stats.sum(axis=1)
-        err_stats = err_stats.loc[err_stats['total'] > 0, :]
-        err_stats.to_excel(writer, sheet_name='errors')
-
-        liv_stats = liv_stats.loc[liv_stats['count'] > 0, :]
-        liv_stats['accuracy'] = 1 - liv_stats['fails'] / liv_stats['count'] / game_size
-        liv_stats.to_excel(writer, sheet_name='lives')
-
-        del_stats = del_stats[del_stats.index > 0]
-        del_stats['accuracy'] = 1 - del_stats['fails'] / del_stats['count'] / game_size
-        del_stats.to_excel(writer, sheet_name='deltas')
-
-"""
-'''
-# %% [code]
-# Utility functions
-
-def mylog(title):
-    global prev_t
-    t = time.time()
-    t_sec = round(t - prev_t)
-    (t_min, t_sec) = divmod(t_sec, 60)
-    (t_hour, t_min) = divmod(t_min, 60)
-    prev_t = t
-    print('{} {} after {}:{}:{}'.format(datetime.now().isoformat(' '), title, t_hour, t_min, t_sec))
-
-
-def save_results(all_submissions, all_results, start_time, end_time):
-    if len(all_results) == 0:
-        print('No results were generated.')
-        return
-
-    # Submission file following Kaggle's format
-    cols = ['id']
-    cols.extend(['start_' + str(j) for j in range(625)])
-    pd.DataFrame(all_submissions, columns=cols).to_csv(OUTPUT_DIR + 'submission.csv', index=False)
-
-    with pd.ExcelWriter(OUTPUT_DIR + 'run_stats.xlsx', engine='xlsxwriter') as writer:
-        # Record basic settings for later review with results.
-        pd.DataFrame([
-            ['batch_size', BATCH_SIZE],
-            ['cnn_paths', CNN_PATHS],
-            ['deltaset', DELTA_SET],
-            ['ga_cross', ga_cross],
-            ['ga_mut_div', ga_mut_div],
-            ['ga_max_iters', ga_max_iters],
-            ['ga_mutate', ga_mutate],
-            ['ga_dynamic_1', ga_dynamic_n],
-            ['ga_dynamic_n', ga_dynamic_n],
-            ['ga_static_1', ga_static_1],
-            ['ga_static_n', ga_static_n],
-            ['ga_pop_size', ga_pop_size],
-            ['ga_save_states', ga_save_states],
-            ['game_idx_min', GAME_IDX_MIN],
-            ['game_idx_max', GAME_IDX_MAX],
-            ['rand_seed', RANDOM_SEED],
-            ['stepwise', stepwise],
-            ['track_details', track_details],
-            ['start_time', start_time],
-            ['end_time', end_time]
-        ], columns=('key', 'value')
-        ).to_excel(writer, sheet_name='config')
-        data = pd.DataFrame(all_results, columns=result_header)
-        data.to_excel(writer, sheet_name='result')
-
-        # Generate more statistical reports based on the above data.
-        game_size = 25 * 25
-        # statistics by errors
-        err_col = ['delta ' + str(j) for j in range(6)]
-        err_stats = pd.DataFrame([[0] * 6] * game_size, columns=err_col)
-        # statistics by number of lives at the end state
-        liv_stats = pd.DataFrame([[0] * 3] * game_size, columns=(
-            'count', 'cnn_fails', 'ga_fails'))
-        del_stats = pd.DataFrame([[0] * 5] * 6, columns=(
-            'count', 'cnn_hits', 'ga_hits', 'cnn_fails', 'ga_fails'))
-
-        for j, row in data.iterrows():
-            (game_index, delta, target_lives, cnn_lives, cnn_errors,
-             ga_lives, ga_errors) = map(int, row[:7])
-
-            err_stats.iloc[ga_errors, delta] += 1
-            liv_stats.iloc[target_lives, 0] += 1
-            liv_stats.iloc[target_lives, 1] += cnn_errors
-            liv_stats.iloc[target_lives, 2] += ga_errors
-            del_stats.iloc[delta, 0] += 1
-            del_stats.iloc[delta, 3] += cnn_errors
-            del_stats.iloc[delta, 4] += ga_errors
-            if cnn_errors == 0:
-                del_stats.iloc[delta, 1] += 1
-            if ga_errors == 0:
-                del_stats.iloc[delta, 2] += 1
-
-        err_stats['total'] = err_stats.sum(axis=1)
-        err_stats = err_stats.loc[err_stats['total'] > 0, :]
-        err_stats.to_excel(writer, sheet_name='errors')
-
-        liv_stats = liv_stats.loc[liv_stats['count'] > 0, :]
-        liv_stats['cnn_accuracy'] = 1 - liv_stats['cnn_fails'] / liv_stats['count'] / game_size
-        liv_stats['ga_accuracy'] = 1 - liv_stats['ga_fails'] / liv_stats['count'] / game_size
-        liv_stats.to_excel(writer, sheet_name='lives')
-
-        del_stats = del_stats[del_stats.index > 0]
-        del_stats['cnn_accuracy'] = 1 - del_stats['cnn_fails'] / del_stats['count'] / game_size
-        del_stats['ga_accuracy'] = 1 - del_stats['ga_fails'] / del_stats['count'] / game_size
-        del_stats.to_excel(writer, sheet_name='deltas')
-
-        pd.DataFrame(mytime, index=['vallue']).T.to_excel(writer, sheet_name='timing')
-
-
-def tic(key):
-    myprev[key] = time.time()
-
-
-def toc(key):
-    mytime[key] += time.time() - myprev[key]
-
-# %% [code]
-# Load CNN models, test file, and set up GA.# Load CNN models, test file, and set up GA.
-
-myprev = {'cnn_static': 0, 'cnn_dynamic': 0, 'cnn_total': 0, 'cnn_many': 0, 'ga_total': 0}
-mytime = myprev.copy()
-
-result_header = [
-    'Game Index', 'Delta', 'Target Lives', 'CNN Lives', 'CNN Errors',
-    'GA Lives', 'GA Errors']
-if ga_save_states:
-    result_header.extend(['Target State', 'CNN Start', 'GA Start'])
-
-prev_t = time.time()
-mylog('Reverse Conway started.')
-start_time = datetime.now().isoformat(' ')
-
-#### Load CNN solvers from files.
-cnn_manager = CnnMan(cnn_solver, stepwise)
-mylog('CNN models loaded')
-
-
-#### Load Kaggle test files
-data = pd.read_csv(KAGGLE_TEST_FILE_PATH, index_col=0, dtype='int')
-mylog('Kaggle file loaded')
-
-#### Apply GA to improve.
-np.random.seed(RANDOM_SEED)
-conway = BinaryConwayForwardPropFn(numpy_mode=True, nrows=25, ncols=25)
-ga = ReverseGa(conway, pop_size=ga_pop_size, max_iters=ga_max_iters,
-               crossover_rate=ga_cross, mutation_rate=ga_mutate,
-               mut_div=ga_mut_div,
-               tracking=track_details, save_states=ga_save_states)
-
-# %% [code]
-# Actual run
-
-mylog('GA run started')
-
-all_results = []
-all_submissions = []
-pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-
-delta_groups = {1: [], 2: [], 3: [], 4: [], 5: []}
-for idx, row in data.iterrows():
-    if idx < GAME_IDX_MIN:
-        continue
-    if idx > GAME_IDX_MAX:
-        break
-    delta = row[0]
-    if delta not in DELTA_SET:
-        continue
-    tf_arr = np.array(row[1:]).astype(np.float32).reshape((25, 25, 1))
-    delta_groups[delta].append(tf_arr)
-
-for delta in [1, 2, 3, 4, 5]:
-    np_problems = np.stack(delta_groups[delta])  # (n, 25, 25, 1)
-    batches = np.array_split(np_problems, len(delta_groups[delta]) // BATCH_SIZE, axis=0)  # [(b, 25, 25, 1)]
-    solved_batches = []
-    for np_batch in batches:
-        solved_batches.append(cnn_manager.revert(
-            np_batch, delta, ga_static_1, ga_static_n, ga_dynamic_1, ga_dynamic_n))
-
-"stop_state, delta, static_1, static_n, dynamic_1, dynamic_n)"
-
-    if len(delta_groups[delta-1]) < batch_size:
-        continue
-
-    np.array(delta_groups[delta-1]).reshape(1, batch_size, 25, 25, 1)
-    tic('cnn_total')
-    solv_1 = cnn_manager.revert(delta_groups[delta-1], delta, 
-                                ga_static_1, ga_static_n, ga_dynamic_1, ga_dynamic_n)
-#         toc('cnn_total')
-#         tic('ga_total')
-#         submission, res = ga.revert(idx, delta, delta_groups[delta-1].astype(bool), solv_1)
-#         toc('ga_total')
-#         all_submissions.append(submission)
-#         all_results.append(res)
-#         delta_groups[delta-1] = None
-#         if track_details:
-#             res_dict = dict(zip(result_header[:7], res[:7]))
-#             detail_file.write('Details for {}:\n{}\n\n'.format(
-#                 res_dict, ga.summary()))
-#         if idx % status_freq == 0:
-#             mylog('Completed game {}.'.format(idx))
-
-# save_results(all_submissions, all_results, start_time, datetime.now().isoformat(' '))
-mylog('Conway solver completed.')
-'''
+    Evaluator.submit(delta_indexes, delta_starts)
