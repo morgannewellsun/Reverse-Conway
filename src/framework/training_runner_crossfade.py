@@ -128,10 +128,18 @@ class TrainingRunnerCrossfade:
             terminate_on_nan_callback]
 
         # train the model
+        '''
+        if delta_steps == 2:
+            reverse_model.load_weights(r"D:\Documents\Reverse Conway\Output\20201128T024517 (delta 2) (incomplete)\best_checkpoint.hdf5")
+            initial_epoch = 270
+        else:
+            initial_epoch = 0
+        '''
         if val_generator is not None:
             reverse_model.fit(
                 x=train_generator,
                 epochs=max_epochs,
+                # initial_epoch=initial_epoch,
                 callbacks=callbacks,
                 validation_data=val_generator,
                 validation_freq=val_freq)
@@ -139,6 +147,7 @@ class TrainingRunnerCrossfade:
             reverse_model.fit(
                 x=train_generator,
                 epochs=max_epochs,
+                # initial_epoch=initial_epoch,
                 callbacks=callbacks)
 
         # save the trained model
@@ -151,18 +160,18 @@ class TrainingRunnerCrossfade:
 
 
 if __name__ == "__main__":
-    for delta_steps in [2, 3, 4, 5]:
+    for delta_steps in [3]:
         TrainingRunnerCrossfade.run(
             root_output_dir=r"D:\Documents\Reverse Conway\Output",
             delta_steps=delta_steps,
             train_generator_name="KaggleSupervisedDataGenerator",
             train_generator_config={"batch_size": 128, "samples_per_epoch": 2**15},
-            epochs_initial=75,
-            epochs_transition=175,
-            final_fade_in_weight=0.7,
+            epochs_initial=30,
+            epochs_transition=75,
+            final_fade_in_weight=1,
             model_name="BaselineConvModel",
             model_config={"n_filters": 128, "n_layers": 48},
-            max_epochs=300,
+            max_epochs=180,
             visualize_first_n=1)
 
 
