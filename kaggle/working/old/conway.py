@@ -419,15 +419,15 @@ def save_results(all_submissions, all_results, start_time, end_time):
 # %% [code]
 # USER SETTINGS# USER SETTINGS
 
-model_root_dir = '../input/conway/cnn_models/'
+model_root_dir = '../../input/conway/cnn_models/'
 cnn_paths = (
     model_root_dir + 'delta_1',
     model_root_dir + 'delta_2',
     model_root_dir + 'delta_3',
     model_root_dir + 'delta_4',
     model_root_dir + 'delta_5' )
-kaggle_test_file = '../input/conways-reverse-game-of-life-2020/test.csv'
-output_dir = './'
+kaggle_test_file = '../../input/conways-reverse-game-of-life-2020/test.csv'
+output_dir = '../'
 
 rand_seed = 0             # Used in genetic algorithm ReverseGa
 ga_pop_size = 100
