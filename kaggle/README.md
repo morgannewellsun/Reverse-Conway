@@ -4,7 +4,7 @@ This folder contains the files and folder structure necessary for submission to 
 
 ### Folder Overview
 
-The `Reverse-Conway/input` folder contains copies of pretrained moels found in `Reverse-Conway/pretrained_models`.
+The `Reverse-Conway/input` folder contains copies of pretrained models found in `Reverse-Conway/pretrained_models`.
 It is also used by the Kaggle framework as the location of evaluation data.
 
 The `Reverse-Conway/working` folder contains notebooks/scripts. 
