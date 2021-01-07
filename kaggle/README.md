@@ -33,7 +33,8 @@ allowing more GA iterations within the time limit and thus improved performance.
 CNN usage in the solver algorithms is very straightforward.
 In all cases, a CNN model trained to revert a fixed number of timesteps is provided to the solver,
 and the solver simply treats the model as a black-box function. For more information about the training 
-of these CNN models, see *INSERT LINK HERE*.
+of these CNN models, see [the src folder](https://github.com/morgannewellsun/Reverse-Conway/tree/master/src),
+which contains implementations for model architecture, data generation, and training.
 
 There are two key GA-related subroutines used in both solvers.
 For simplicity, vectorization is not considered in the pseudocode below.
@@ -73,21 +74,21 @@ PARAMETERS:
 OUTPUT:
 - List of (25 by 25) grids of booleans representing the GA population.
 
-x.  n_original_population <- len(ga_population)
-x.  ga_population_shuffled <- shuffle ga_population
-x.  ga_population_mutations <- []
-x.  for each board in ga_population:
-x.      mutator <- (25 by 25) grid of random booleans, weighted by ga_mutation_rate
-x.      mutation_result_board <- board ^ mutator
-x.      ga_population_mutations <- ga_population_mutations + [mutation_result_board]
-x.  ga_population_crossovers <- []
-x.  for integer i in len(ga_population):
-x       swapper <- (25 by 25) grid of 50/50 random booleans
-x.      crossover_result_board <- (ga_population[i]) & swapper | (ga_population_shuffled[i] & ~swapper)
-x.      ga_population_crossovers <- ga_population_crossovers + [crossover_result_board]
-x.  ga_population <- ga_population + ga_population_mutations + ga_population_crossovers
-x.  ga_population <- select best n_original_population boards in ga_population
-x.  return ga_population
+1.  n_original_population <- len(ga_population)
+2.  ga_population_shuffled <- shuffle ga_population
+3.  ga_population_mutations <- []
+4.  for each board in ga_population:
+5.      mutator <- (25 by 25) grid of random booleans, weighted by ga_mutation_rate
+6.      mutation_result_board <- board ^ mutator
+7.      ga_population_mutations <- ga_population_mutations + [mutation_result_board]
+8.  ga_population_crossovers <- []
+9.  for integer i in len(ga_population):
+10.     swapper <- (25 by 25) grid of 50/50 random booleans
+11.     crossover_result_board <- (ga_population[i]) & swapper | (ga_population_shuffled[i] & ~swapper)
+12.     ga_population_crossovers <- ga_population_crossovers + [crossover_result_board]
+13. ga_population <- ga_population + ga_population_mutations + ga_population_crossovers
+14. ga_population <- select best n_original_population boards in ga_population
+15. return ga_population
 ```
 
 ### Stackwise Solver
@@ -111,13 +112,13 @@ PARAMETERS:
 OUTPUT:
 - (25 by 25) boolean grid representing predicted starting board state
 
-x.  for delta iterations:
-x.      cell_probabilities <- cnn_model(target_state)
-x.      ga_population <- GA-INITALIZE-POPULATION(cell_probabilities)
-x.      for ga_iterations iterations:
-x.          ga_population <- GA-ITERATE(ga_population)
-x.      pred_board <- select best board from ga_population
-x.  return pred_board
+1.  for delta iterations:
+2.      cell_probabilities <- cnn_model(target_state)
+3.      ga_population <- GA-INITALIZE-POPULATION(cell_probabilities)
+4.      for ga_iterations iterations:
+5.          ga_population <- GA-ITERATE(ga_population)
+6.      pred_board <- select best board from ga_population
+7.  return pred_board
 ```
 
 ### Oneshot Solver
@@ -140,11 +141,11 @@ PARAMETERS:
 OUTPUT:
 - (25 by 25) boolean grid representing predicted starting board state
 
-x.  cell_probabilities <- cnn_model(target_state)
-x.  ga_population <- GA-INITALIZE-POPULATION(cell_probabilities)
-x.  for ga_iterations iterations:
-x.      ga_population <- GA-ITERATE(ga_population)
-x.  pred_board <- select best board from ga_population
-x.  return pred_board
+1.  cell_probabilities <- cnn_model(target_state)
+2.  ga_population <- GA-INITALIZE-POPULATION(cell_probabilities)
+3.  for ga_iterations iterations:
+4.      ga_population <- GA-ITERATE(ga_population)
+5.  pred_board <- select best board from ga_population
+6.  return pred_board
 ```
 
