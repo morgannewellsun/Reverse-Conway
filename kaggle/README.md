@@ -4,11 +4,11 @@ This folder contains the files and folder structure necessary for submission to 
 
 ### Folder Overview
 
-The `Reverse-Conway/input` folder contains copies of pretrained models found in `Reverse-Conway/pretrained_models`.
+The `Reverse-Conway/kaggle/input` folder contains copies of pretrained models found in `Reverse-Conway/pretrained_models`.
 It is also used by the Kaggle framework as the location of evaluation data.
 
-The `Reverse-Conway/working` folder contains notebooks/scripts. 
-The primary file of interest here is `Reverse-Conway/working/conway_parallel.py`, which was the script submitted to Kaggle.
+The `Reverse-Conway/kaggle/working` folder contains notebooks/scripts. 
+The primary file of interest here is `Reverse-Conway/kaggle/working/conway_parallel.py`, which was the script submitted to Kaggle.
 
 ### Strategy Overview
 
