@@ -9,9 +9,9 @@ The objective is to create an algorithm which, given a [Conway's Game of Life](h
 - CNN models with specialized architecture trained using a dynamic blend of two loss functions to predict `delta` timesteps backwards in time.
 - During inference, CNN predictions are refined using a genetic algorithm implemented in tensorflow.
 
-**For much more discussion regarding the training of these CNN models, see `README.md` in the [`src` folder](https://github.com/morgannewellsun/Reverse-Conway/tree/master/src).**
+**For much more discussion regarding the training of these CNN models, see the `README.md` in the [`src` folder](https://github.com/morgannewellsun/Reverse-Conway/tree/master/src).**
 
-**For much more discussion regarding the refinement of CNN predictions using a genetic algorithm, see `README.md` in the in the [`kaggle` folder](https://github.com/morgannewellsun/Reverse-Conway/tree/master/kaggle)**
+**For much more discussion regarding the refinement of CNN predictions using a genetic algorithm, see the `README.md` in the in the [`kaggle` folder](https://github.com/morgannewellsun/Reverse-Conway/tree/master/kaggle).**
 
 ### Dependencies
 
