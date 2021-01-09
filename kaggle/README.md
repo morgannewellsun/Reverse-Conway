@@ -43,7 +43,7 @@ For simplicity, vectorization is not considered in the pseudocode below.
 GA-INITALIZE-POPULATION
 
 INPUT:
-- cell_probabilities:   (25 by 25) grid of floats representing predicted cell-alive probabilities
+- cell_probabilities:   (25, 25) grid of floats representing predicted cell-alive probabilities
 
 PARAMETERS:
 - ga_n_dynamic:         integer
@@ -51,11 +51,11 @@ PARAMETERS:
 - ga_static_span:       float
 
 OUTPUT:
-- List of (25 by 25) grids of booleans representing the initial GA population.
+- List of (25, 25) grids of booleans representing the initial GA population.
 
 1.  ga_population <- []
 2.  for ga_n_dynamic iterations:
-3.      ga_population <- ga_population + [sample (25 by 25) grid of random booleans, weighted by cell_probabilities]
+3.      ga_population <- ga_population + [sample (25, 25) grid of random booleans, weighted by cell_probabilities]
 4.  static_thresholds <- [ga_n_static uniformly spaced floats between 0.5-ga_static_span and 0.5+ga_static_span]
 5.  for each static_threshold in static_thresholds:
 6.      ga_population <- ga_population + [cell_probabilities >= static_threshold]
@@ -66,24 +66,24 @@ OUTPUT:
 GA-ITERATE
 
 INPUT:
-- ga_population:        List of (25 by 25) grids of booleans representing the GA population.
+- ga_population:        List of (25, 25) grids of booleans representing the GA population.
 
 PARAMETERS:
 - ga_mutation_rate:     float
 
 OUTPUT:
-- List of (25 by 25) grids of booleans representing the GA population.
+- List of (25, 25) grids of booleans representing the GA population.
 
 1.  n_original_population <- len(ga_population)
 2.  ga_population_shuffled <- shuffle ga_population
 3.  ga_population_mutations <- []
 4.  for each board in ga_population:
-5.      mutator <- (25 by 25) grid of random booleans, weighted by ga_mutation_rate
+5.      mutator <- (25, 25) grid of random booleans, weighted by ga_mutation_rate
 6.      mutation_result_board <- board ^ mutator
 7.      ga_population_mutations <- ga_population_mutations + [mutation_result_board]
 8.  ga_population_crossovers <- []
 9.  for integer i in len(ga_population):
-10.     swapper <- (25 by 25) grid of 50/50 random booleans
+10.     swapper <- (25, 25) grid of 50/50 random booleans
 11.     crossover_result_board <- (ga_population[i]) & swapper | (ga_population_shuffled[i] & ~swapper)
 12.     ga_population_crossovers <- ga_population_crossovers + [crossover_result_board]
 13. ga_population <- ga_population + ga_population_mutations + ga_population_crossovers
@@ -95,14 +95,14 @@ OUTPUT:
 
 The stackwise solver iterates backwards one timestep at a time.
 This solver requires a CNN trained to predict one timestep backwards in time.
-For each timestep, the CNN is used to generate a (25 by 25) grid of alive-probabilities, which the GA then iterates on.
+For each timestep, the CNN is used to generate a `(25, 25)` grid of alive-probabilities, which the GA then iterates on.
 For simplicity, vectorization is not considered in the pseudocode below.
 
 ```
 SOLVER-STACKWISE
 
 INPUT:
-- target_state:         (25 by 25) boolean grid representing target board state
+- target_state:         (25, 25) boolean grid representing target board state
 - cnn_model:            CNN model trained to revert a given board state by one timestep
 - delta:                integer number of timesteps to revert
 
@@ -110,7 +110,7 @@ PARAMETERS:
 - ga_iterations:        integer
  
 OUTPUT:
-- (25 by 25) boolean grid representing predicted starting board state
+- (25, 25) boolean grid representing predicted starting board state
 
 1.  for delta iterations:
 2.      cell_probabilities <- cnn_model(target_state)
@@ -131,7 +131,7 @@ Once again, for simplicity, vectorization is not considered in the pseudocode be
 SOLVER-ONESHOT
 
 INPUT:
-- target_state:         (25 by 25) boolean grid representing target board state
+- target_state:         (25, 25) boolean grid representing target board state
 - cnn_model:            CNN model trained to revert a given board state by delta timesteps
 - delta:                integer number of timesteps to revert
 
@@ -139,7 +139,7 @@ PARAMETERS:
 - ga_iterations:        integer
  
 OUTPUT:
-- (25 by 25) boolean grid representing predicted starting board state
+- (25, 25) boolean grid representing predicted starting board state
 
 1.  cell_probabilities <- cnn_model(target_state)
 2.  ga_population <- GA-INITALIZE-POPULATION(cell_probabilities)
