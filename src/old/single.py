@@ -42,9 +42,9 @@ import logging
 import pathlib
 from datetime import datetime
 from components.binary_conway_forward_prop_fn import BinaryConwayForwardPropFn
-from components.reversega import ReverseGa
-from components.cnnman import CnnMan
-from data.revconwayreport import post_run_report
+from old.reversega import ReverseGa
+from old.cnnman import CnnMan
+from old.revconwayreport import post_run_report
 
 
 def mylog(msg):
