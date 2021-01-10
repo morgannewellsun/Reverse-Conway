@@ -117,3 +117,4 @@ The probabilistic version is differentiable,
 and thus allows the game logic to be incorporated into loss functions.
 - `components/prob_conway_to_binary_conway_fn.py` contains a tensorflow function to convert
 an array of living probabilities to an array of boolean living/dead states.
+- `framework/visualization_callback.py` and `framework/visualizer.py` contain board visualization code.
