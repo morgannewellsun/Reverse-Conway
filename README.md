@@ -2,7 +2,9 @@
 
 This repository contains our solution to [the 2020 Conway's Reverse Game of Life Kaggle competition](https://www.kaggle.com/c/conways-reverse-game-of-life-2020).
 
-The objective is to create an algorithm which, given a [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) board (the target board) and a number of timesteps (`delta`), can predict a board which, when propagated forwards `delta` timesteps according to the rules of Conway's Game of Life, results in the original input (target) board. In other words, the algorithm must "reverse time" by `delta` steps.
+The objective is to create an algorithm which, given a [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) board (the target board) and a number of timesteps (`delta`) between `1` and `5`, can predict a board which, when propagated forwards `delta` timesteps according to the rules of Conway's Game of Life, results in the original input (target) board. In other words, the algorithm must "reverse time" by `delta` steps.
+
+We achieved 10th place in the leaderboard (team "Takeiteasy"), with an average error rate of 4.866% across all `delta` values.
 
 ### Solution Highlights
 
