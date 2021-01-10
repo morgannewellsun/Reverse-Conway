@@ -1,0 +1,21 @@
+{
+    "root_output_dir": "D:\\Documents\\Reverse Conway\\Output",
+    "delta_steps": 1,
+    "train_generator_name": "KaggleSupervisedDeltaOneDataGenerator",
+    "train_generator_config": {
+        "batch_size": 128,
+        "samples_per_epoch": 65536
+    },
+    "val_generator_name": null,
+    "val_generator_config": null,
+    "val_freq": 1,
+    "epochs_initial": 100,
+    "epochs_transition": 100,
+    "model_name": "BaselineConvModel",
+    "model_config": {
+        "n_filters": 128,
+        "n_layers": 24
+    },
+    "max_epochs": 300,
+    "visualize_first_n": 5
+}
